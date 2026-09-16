@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "/agent/schemas/graph-proposal.schema.json",
+  "title": "Wenmai Agent Graph Proposal Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id", "taskId", "attemptId", "articleId", "proposalKind", "sourceId", "targetId", "relationType",
+    "label", "payload", "evidence", "contextSha256", "inputSha256", "status", "lockVersion",
+    "createdByClientId", "createdAt", "reviewedAt", "reviewedBy", "reviewNote"
+  ],
+  "properties": {
+    "id": {"$ref": "#/$defs/stableId"},
+    "taskId": {"$ref": "#/$defs/stableId"},
+    "attemptId": {"$ref": "#/$defs/stableId"},
+    "articleId": {"$ref": "#/$defs/stableId"},
+    "proposalKind": {"enum": ["node", "edge", "claim"]},
+    "sourceId": {"$ref": "#/$defs/nullableId"},
+    "targetId": {"$ref": "#/$defs/nullableId"},
+    "relationType": {"type": "string", "maxLength": 120},
+    "label": {"type": "string", "maxLength": 500},
+    "payload": {"type": "object"},
+    "evidence": {"type": "array", "maxItems": 30, "items": {"type": "string", "maxLength": 2000}},
+    "contextSha256": {"$ref": "#/$defs/sha256"},
+    "inputSha256": {"$ref": "#/$defs/sha256"},
+    "status": {"enum": ["candidate", "confirmed", "rejected"]},
+    "lockVersion": {"type": "integer", "minimum": 1},
+    "createdByClientId": {"$ref": "#/$defs/stableId"},
+    "createdAt": {"type": "string", "format": "date-time"},
+    "reviewedAt": {"anyOf": [{"type": "string", "format": "date-time"}, {"type": "null"}]},
+    "reviewedBy": {"$ref": "#/$defs/nullableId"},
+    "reviewNote": {"type": "string", "maxLength": 4000}
+  },
+  "$defs": {
+    "stableId": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$"},
+    "nullableId": {"anyOf": [{"$ref": "#/$defs/stableId"}, {"type": "null"}]},
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  }
+}

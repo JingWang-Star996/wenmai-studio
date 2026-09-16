@@ -1,0 +1,7 @@
+# Preserve the exact byte sequence that passed public-release staging.
+* -text
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.sqlite binary

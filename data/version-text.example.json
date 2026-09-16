@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "1.0.0",
+  "algorithmVersion": "wenmai-public-empty/1",
+  "generatedAt": "1970-01-01T00:00:00.000Z",
+  "versions": {
+    "version:public-demo": "33a0787adebbb9e8b95e5f96d9cef27f334836633b970733602f1f9f3b6f1faa"
+  },
+  "blobs": {
+    "33a0787adebbb9e8b95e5f96d9cef27f334836633b970733602f1f9f3b6f1faa": "# 欢迎使用文脉\n\n这是一个不包含个人数据的合成示例。你可以导入自己的文章来替换它。\n\n# Welcome to Wenmai\n\nThis synthetic example contains no personal data. Import your own article to replace it.\n"
+  }
+}

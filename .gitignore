@@ -1,0 +1,95 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/.vinext/
+/out/
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+/.dev.vars*
+/.backups/
+
+# vercel
+.vercel
+
+/dist/
+/.wrangler/
+/outputs/
+/work/
+/.runner/
+
+# local browser/runtime state (may contain cookies or login/session databases)
+/build/chrome-qa-profile/
+
+# local execution evidence, database snapshots, and browser captures
+/artifacts/
+/.artifacts/
+/build/*.png
+
+# local credentials and databases
+/.local-owner/
+/.local-import-*
+*.dpapi
+*.key
+*.p12
+*.pfx
+*.db
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# logs and transient state
+*.log
+/logs/
+/tmp/
+/d1/
+/tests/generated/
+*.tmp
+*.bak
+.pytest_cache/
+
+# generated compiler/interpreter caches
+*.tsbuildinfo
+**/__pycache__/
+*.py[cod]
+
+# interrupted corpus refresh snapshots
+/data/*.generated.*.tmp.json
+/data/*.generated.*.backup.json
+# local offline refresh lock, staging directory, and retained rollback copy
+/.wenmai-runtime-maintenance.lock
+/.wenmai-refresh-stage-*/
+/.wenmai-refresh-backup-*/
+
+# local content index snapshots may contain personal data from the parent corpus
+/data/*.json
+!/data/*.example.json
+!/data/README.md
+
+# explicit, non-secret environment templates may be versioned
+!.env.example
+!.env.*.example

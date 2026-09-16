@@ -1,0 +1,47 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "workUnitId", "packetSha256", "output", "outputSha256", "result", "files_written", "tool_calls", "routeReceipt", "routeReceiptVerification"],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "wenmai.codex-native-smoke-result/1.0" },
+    "workUnitId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$" },
+    "packetSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "rows"],
+      "properties": {
+        "schemaVersion": { "type": "string", "const": "uppercase-labels/1.0" },
+        "rows": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "labelUpper"],
+            "properties": {
+              "id": { "type": "string", "enum": ["a", "b"] },
+              "labelUpper": { "type": "string", "enum": ["ALPHA", "BETA"] }
+            }
+          }
+        }
+      }
+    },
+    "outputSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "result": { "type": "string", "const": "candidate_only" },
+    "files_written": { "type": "array", "items": { "type": "string" }, "maxItems": 0 },
+    "tool_calls": { "type": "array", "items": { "type": "string" }, "maxItems": 0 },
+    "routeReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["agent", "configured_model", "sandbox"],
+      "properties": {
+        "agent": { "type": "string", "const": "wenmai_fast_worker" },
+        "configured_model": { "type": "string", "const": "gpt-5.6-luna" },
+        "sandbox": { "type": "string", "const": "read-only" }
+      }
+    },
+    "routeReceiptVerification": { "type": "string", "const": "profile_reported_not_host_attested" }
+  }
+}

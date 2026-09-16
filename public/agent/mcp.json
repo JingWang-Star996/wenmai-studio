@@ -1,0 +1,201 @@
+{
+  "schemaVersion": "wenmai.mcp-discovery/1.0",
+  "name": "文脉本地文章工厂 MCP",
+  "status": "available",
+  "mcpProtocolVersion": "2025-06-18",
+  "transport": {
+    "kind": "stdio",
+    "framing": "newline_delimited_json_rpc",
+    "batching": false,
+    "networkBoundary": "explicit_loopback_http_or_explicit_exact_tailscale_https",
+    "loopbackHttp": {
+      "configuration": "--base-url",
+      "ipLiterals": ["127.0.0.1", "::1"]
+    },
+    "tailscaleHttps": {
+      "configuration": "--trusted-tailscale-host",
+      "hostnamePolicy": "exact_ascii_machine_tailnet_ts_net",
+      "defaultPort": 443,
+      "gatewayAuthentication": "same_agent_bearer_required_for_all_allowlisted_paths",
+      "tlsCertificateVerification": "required",
+      "tlsHostnameVerification": "required"
+    }
+  },
+  "implementation": {
+    "language": "python3_stdlib",
+    "script": "scripts/wenmai_mcp_server.py",
+    "workingDirectory": "wenmai-studio project root",
+    "command": "python -B scripts/wenmai_mcp_server.py --base-url http://[::1]:3000",
+    "accessFileCommand": "python -B scripts/wenmai_mcp_server.py --access-file <path>",
+    "portableAccessFile": {"schemaVersion": "wenmai.agent-access-file/1", "acceptedKinds": ["portable-share-grant", "portable-role-grant"], "variants": {"portable-share-grant": {"grantClasses": ["viewer", "editor"], "forbiddenCredentialClasses": ["advanced", "administrator"]}, "portable-role-grant": {"roleIds": ["content-steward", "article-worker", "local-registrar"], "fixedProfilesOnly": true}}, "secret": true, "possessionIsAuthority": true, "contents": "connectionCard plus Bearer credential", "serverAuthority": "agent_clients status, expiry and revocation are authoritative", "credentialExposure": "never URL, argv, logs or connectionCard", "storage": "treat as an SSH private key; POSIX 0600 where supported", "lossResponse": "revoke immediately by clientId", "gatewayActivationImplied": false, "crossDeviceOrPublicVerificationClaim": false},
+    "roleAccess": {"schemaVersion": "wenmai.role-grant/1", "roles": ["content-steward", "article-worker", "local-registrar"], "taskManagerTools": ["wenmai_create_task", "wenmai_update_task", "wenmai_cancel_task"], "taskManagerBoundary": "server-authoritative task.manage plus the matching action snapshot is required; content-steward is the default portable role, while advanced exact grants may also qualify", "developmentAndUpgrade": "local Git, worktree, tests and review only; never use a Bearer role grant", "currentGaps": ["no safe Agent write API for deduplication final merge", "no safe Agent write API for workflow fission new roots"]},
+    "tailscaleCommandTemplate": "python -B scripts/wenmai_mcp_server.py --trusted-tailscale-host <machine>.<tailnet>.ts.net",
+    "tokenEnvironment": "WENMAI_AGENT_TOKEN",
+    "tokenEnvironmentUsage": "internal child-process injection only; do not persist plaintext in MCP configuration",
+    "recommendedProfileWrapper": "powershell -File scripts/invoke-wenmai-agent-profile.ps1 -ProfileName <name> -Mode Mcp",
+    "tokenSource": "在 Agent 中心的权限与 Key 面板由所有者手工签发，再保存为 Windows DPAPI CurrentUser 命名档案",
+    "privilegedRoleProfiles": "not exposed as generic MCP tools; administrator task actions use the separate AdminAction wrapper and local super-admin actions, including create_publication_branch, attach_branch and register_publication_version, remain per-route allowlisted"
+    ,"siteFullControlKey": "v5 site.full_control Key is accepted as an Agent Bearer by Codex, QwenPaw and this MCP server at exact http://[::1]:3000; purpose=site_full_control, actionIds auth.site_full_control.direct + auth.site_full_control.exchange, role=super_admin, all articles including future additions, taskIds=[], root lifetime 1..7 days. The root authorization includes token.issue/token.revoke through the Agent API, although the stock MCP tool list does not expose generic Key-management tools. It may optionally exchange for a host-only browser management cookie, but it never grants publish.capability.consume, external login, or the final publish click."
+  },
+  "discovery": {
+    "tools": "tools/list",
+    "resources": "resources/list",
+    "prompts": "prompts/list"
+  },
+  "capabilityGroups": [
+    "agent_task_and_frozen_context_read",
+    "knowledge_subgraph_and_article_lineage_read",
+    "dynamic_skill_and_gate_search",
+    "article_project_diagnostics_and_slice_read",
+    "article_project_branch_discovery",
+    "article_project_candidate_patch_proposal",
+    "shared_source_metadata_read_not_exposed",
+    "leased_progress_and_candidate_artifact_write"
+  ],
+  "packageTools": {
+    "requiredReadScope": "package.read",
+    "readTransport": "GET /api/agent/v1 project_* views with Agent Bearer",
+    "managementCookieUsed": false,
+    "browserBindingUsed": false,
+    "branchDiscovery": "wenmai_list_project_branches(packageId)",
+    "branchQualifiedReads": [
+      "wenmai_get_article_project(packageId,branchId)",
+      "wenmai_get_project_diagnostics(packageId,branchId)",
+      "wenmai_get_project_slices(packageId,branchId)"
+    ],
+    "candidatePatch": {
+      "tool": "wenmai_propose_package_patch",
+      "requiresClientScope": "package.patch.propose",
+      "requires": ["active lease", "frozen branch baseline", "frozen contextSpec.targetModuleKey"],
+      "allowedOperations": ["replace_module", "remove_module", "upsert_edge", "remove_edge"],
+      "forbiddenOperations": ["replace_document", "add_module"],
+      "moduleScope": "single_existing_target_module",
+      "edgeScope": "incident_to_target_only",
+      "result": "candidate_only"
+    },
+    "taskDetailProjection": {
+      "tool": "wenmai_get_task",
+      "frozenBundleReturned": false,
+      "returnedContextSnapshotFields": ["redacted packageBaseline", "guidanceChecklist summary"],
+      "returnedTopLevelReceipts": ["packagePatchProposals"],
+      "fullContextTool": "wenmai_get_task_context requires context.read"
+    },
+    "crossArticleRead": false
+  },
+  "projectGroupTools": {
+    "requiredReadScope": "package.read",
+    "readTransport": "GET /api/agent/v1 project_group* views with Agent Bearer only",
+    "tools": ["wenmai_list_project_groups", "wenmai_get_project_group"],
+    "readOnlyHint": true,
+    "managementCookieUsed": false,
+    "browserBindingUsed": false,
+    "csrfUsed": false,
+    "completeGroupScopeGate": "every group member articleId must be authorized; MCP never receives a redacted topology",
+    "emptyGroupScope": "star-scoped tokens may read empty groups; restricted tokens omit them and receive 403 on detail without disclosure",
+    "listProjection": {
+      "boundedSummary": true,
+      "fields": ["group", "memberCount", "edgeCount", "storedTopologySha256", "detailRequiredForTopology"],
+      "excludes": ["members", "edges", "topology", "integrityStatus"]
+    },
+    "detailReadLimits": {"members": 256, "edges": 2048, "exceeded": "PROJECT_GROUP_READ_LIMIT_EXCEEDED", "status": 409, "partialDataReturned": false},
+    "sideEffects": {"projectGroupBusinessWrites": false, "tablesEventsReceiptsUnchanged": true, "authenticationLastSeenTelemetryMayUpdate": true},
+    "ownerMutationToolsRegistered": false
+  },
+  "sharedSourceTools": {
+    "status": "not_exposed",
+    "agentApiViews": ["shared_source_manifest", "shared_source"],
+    "requiredReadScope": "shared_source.read",
+    "reason": "MCP has not registered shared-source tools; this is not a claim that a connector, remote synchronization, or source content read is available.",
+    "projectionIfFutureToolIsRegistered": "No shared-source MCP tool is registered. The current Agent API exposes only 0031 metadata projection after source, current binding, rights and access gates; excludes body, excerpt, content_ref and raw provider IDs.",
+    "connector": "unconfigured_unknown_official_general_sync_api_not_verified"
+  },
+  "writeContract": {
+    "stableCommandIdRequired": true,
+    "agentBearerRequired": true,
+    "activeLeaseRequiredAfterClaim": true,
+    "contextSha256RequiredAfterClaim": true,
+    "packageContextBoundToTargetBranch": true,
+    "packagePatchRequiresBaseRevisionAndBranchLock": true,
+    "packagePatchTargetModuleFrozen": true,
+    "packagePatchAllowedOperations": ["replace_module", "remove_module", "upsert_edge", "remove_edge"],
+    "packagePatchIncidentEdgesOnly": true,
+    "taskDetailContextBundleRedacted": true,
+    "commandReceiptAuthoritative": true,
+    "weakModelCompletionToolExposed": false,
+    "candidateHandoff": "progress checkpoint followed by wenmai_ask_human or coordinator handoff"
+  },
+  "privilegedPublicationBranchControl": {
+    "issuanceStatus": "The listed publication-branch controls are safe current v3 catalog scopes only when selected by an owner from the permission catalog; this MCP server does not expose them as generic tools. High-risk issuance remains disabled.",
+    "exposedAsGenericMcpTools": false,
+    "wrapper": "scripts/invoke-wenmai-agent-profile.ps1 -Mode SuperAdminAction",
+    "transport": "exact http://[::1]:3000 only",
+    "actions": ["create_publication_branch", "attach_branch", "register_publication_version"],
+    "scopes": ["workspace.publication_branch.create", "package.branch.attach", "publication.version.register"],
+    "stableCommandIdCasAndReceiptRequiredForEveryAction": true,
+    "sourceBoundary": "create_publication_branch accepts only the current clean primary/canonical Package coordinates with Package, branch, Revision, body and Composition CAS",
+    "historicalContentFlow": "worker branch-qualified candidate Patch -> legacy local super_admin decide_patch -> legacy local super_admin apply_patch -> register_publication_version; decide/apply are not available for new v3 issuance",
+    "genericActionsNotGranted": ["create_branch", "save_working_package", "commit", "set_primary_branch"],
+    "ownerBoundariesUnchanged": ["Key issue or revoke", "publish capability issue", "login or 2FA", "account switching", "final external publish authorization", "external publish click", "completion declaration"]
+  },
+  "workspaceBranchWriteV3": {
+    "scope": "workspace.branch.write",
+    "issuance": "current v3 new issuance only when selected from the owner permission catalog",
+    "role": "super_admin",
+    "transport": "exact http://[::1]:3000 only",
+    "route": "/api/workspace",
+    "actionIds": ["workspace.save_working_copy", "workspace.commit_revision"],
+    "wireActions": ["save_working_copy", "commit_revision"],
+    "stableCommandIdCasAndReceiptRequiredForEveryAction": true,
+    "exposedAsGenericMcpTools": false,
+    "notGranted": ["create_branch", "save_working_package", "commit", "set_primary_branch"]
+  },
+  "taskManageV3": {
+    "scope": "task.manage",
+    "actionIds": ["agent.v1.create_task", "agent.v1.update_task", "agent.v1.cancel_task"],
+    "agentBranchCreation": "create_task may create a task-owned Agent Branch, initial Revision and WorkingCopy only when branch.agent_write is explicitly requested.",
+    "notGranted": ["main write", "publication branch creation", "task-owned branch rebinding"]
+  },
+  "boundaries": {
+    "arbitraryShell": false,
+    "arbitraryFileRead": false,
+    "arbitraryHttpProxy": false,
+    "tailscaleMetadataBearer": true,
+    "loopbackMetadataBearer": false,
+    "redirects": false,
+    "mainBranchWrite": false,
+    "merge": false,
+    "editorialApproval": false,
+    "releaseApproval": false,
+    "externalSubmission": false,
+    "ruleAdoption": false,
+    "packagePatchApply": false,
+    "packagePatchReplaceDocument": false,
+    "packagePatchAddModule": false,
+    "managementCredentialExposureToMcp": false,
+    "candidateCompletionIsPublication": false,
+    "weakModelCompletionDeclaration": false,
+    "keyIssueOrRevoke": "ordinary MCP Agent tools: false; v5 site.full_control raw Agent API authorization: true",
+    "publishCapabilityIssue": false,
+    "publishCapabilityConsume": false,
+    "genericPublicationBranchMutationMcpTool": false,
+    "loginOr2FA": false,
+    "externalPublishClick": false
+  },
+  "permissionCatalogV5": {
+    "endpoint": "GET /api/agent/v1?view=permission_catalog",
+    "access": "owner browser management session only; Bearer Agent tokens cannot read it",
+    "catalogDigest": "GET includes catalogSha256, the canonical SHA-256 of the complete catalog and presets. Current catalog version is 2026-09-10.1.",
+    "issuanceConfirmation": "v3 issuance echoes catalogVersion, catalogSha256 and sorted deduplicated confirmedActionIds; the server recomputes the digest and exact scope-to-action set. Read-only presets use confirmedActionIds=[].",
+    "legacyV3WithoutDigest": "compatibility-only and never automatically expanded by later catalog changes",
+    "mcpRole": "The stock MCP tool list consumes a separately issued Key and does not expose generic issue/revoke/catalog tools; a v5 site.full_control holder may use the documented raw Agent API token.issue/token.revoke routes at exact [::1].",
+    "v5KeyBoundary": "Ordinary Keys use sorted 1..200 concrete articleIds and taskIds=[]; v5 site.full_control is the sole all-article scope, includes future articles, has purpose=site_full_control and root lifetime 1..7 days. All Key lifetimes are free integers from 1 through the role maximum.",
+    "highRiskActivation": "Internal high-risk scopes may now be newly issued through free selection or the separation/conflict presets, with server-side role, action and lifetime checks. publish.capability.consume remains newIssuance=false and cannot be delegated. This is a static catalog/contract statement, not proof of a real D1 migration, Key, action, external publication, or layered claim.",
+    "legacyAndLocalImport": "Legacy privileged Keys remain frozen compatibility records. v4 management_session_exchange Keys only exchange and require reissuance for v5 direct use. Historical publish.capability.consume routes to /api/publish-capability/v1 action=consume and remains newIssuance=false. Ordinary Worker/Candidate issuance remains separate; local-import remains the exclusive article.import.new_root scope with articleIds=['*'] and taskIds=[]."
+  },
+  "machineContracts": {
+    "agent": "/agent/api/v1.json",
+    "articleProject": "/api/agent/v1?view=project_manifest",
+    "capabilities": "/api/capabilities",
+    "corpusAndLineage": "/api/corpus/v1?view=manifest"
+  }
+}

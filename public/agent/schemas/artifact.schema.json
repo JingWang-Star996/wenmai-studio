@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "/agent/schemas/artifact.schema.json",
+  "title": "Wenmai Agent Artifact Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "taskId", "attemptId", "kind", "title", "contentRef", "sha256", "mediaType", "sizeBytes", "payload", "contextSha256", "createdAt"],
+  "properties": {
+    "id": {"$ref": "#/$defs/stableId"},
+    "taskId": {"$ref": "#/$defs/stableId"},
+    "attemptId": {"$ref": "#/$defs/stableId"},
+    "kind": {"type": "string", "minLength": 1, "maxLength": 80},
+    "title": {"type": "string", "minLength": 1, "maxLength": 240},
+    "contentRef": {"type": "string", "pattern": "^(?:agent-inline:|artifact:|\\.runner/agent/)[A-Za-z0-9][A-Za-z0-9._:/-]{0,479}$"},
+    "sha256": {"$ref": "#/$defs/sha256"},
+    "mediaType": {"type": "string", "pattern": "^[a-z0-9][a-z0-9!#$&^_.+-]{0,63}/[a-z0-9][a-z0-9!#$&^_.+-]{0,63}$"},
+    "sizeBytes": {"type": "integer", "minimum": 0, "maximum": 1000000000},
+    "payload": {"type": "object"},
+    "contextSha256": {"$ref": "#/$defs/sha256"},
+    "createdAt": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {
+    "stableId": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$"},
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  }
+}

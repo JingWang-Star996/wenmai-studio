@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "/agent/schemas/article-guidance-checklist.schema.json",
+  "title": "Wenmai Article Guidance Checklist",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "checklistSha256",
+    "archiveState",
+    "archiveReady",
+    "editorialWorkReady",
+    "processingProfile",
+    "profileAuthority",
+    "summary",
+    "checks",
+    "nextAction",
+    "workUnits",
+    "permissions",
+    "completionBoundary",
+    "bindings"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "wenmai-article-guidance-checklist/1.0.0"},
+    "checklistSha256": {"$ref": "#/$defs/sha256"},
+    "archiveState": {
+      "enum": [
+        "needs_archive_repair",
+        "archived_pending_human_triage",
+        "light_archive_ready",
+        "guided_editorial_work_ready"
+      ]
+    },
+    "archiveReady": {"type": "boolean"},
+    "editorialWorkReady": {"type": "boolean"},
+    "processingProfile": {"enum": ["unselected", "light_archive", "full_production"]},
+    "profileAuthority": {"enum": ["none", "policy_default", "human"]},
+    "summary": {"$ref": "#/$defs/summary"},
+    "checks": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/check"}
+    },
+    "nextAction": {"$ref": "#/$defs/nextAction"},
+    "workUnits": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/workUnit"}
+    },
+    "permissions": {"$ref": "#/$defs/permissions"},
+    "completionBoundary": {"$ref": "#/$defs/completionBoundary"},
+    "bindings": {
+      "type": "object",
+      "patternProperties": {
+        "^.+$": {
+          "anyOf": [
+            {"type": "string"},
+            {"type": "number"},
+            {"type": "boolean"},
+            {"type": "null"}
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "actor": {"enum": ["deterministic_code", "agent", "coordinator", "human"]},
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["passed", "pending", "blocked", "humanRequired", "modules", "sources", "relations"],
+      "properties": {
+        "passed": {"type": "integer", "minimum": 0},
+        "pending": {"type": "integer", "minimum": 0},
+        "blocked": {"type": "integer", "minimum": 0},
+        "humanRequired": {"type": "integer", "minimum": 0},
+        "modules": {"type": "integer", "minimum": 0},
+        "sources": {"type": "integer", "minimum": 0},
+        "relations": {"type": "integer", "minimum": 0}
+      }
+    },
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "phase",
+        "title",
+        "status",
+        "requiredForArchive",
+        "responsibleActor",
+        "evidence",
+        "instruction",
+        "onFailure"
+      ],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "phase": {"enum": ["archive", "triage", "editorial", "boundary"]},
+        "title": {"type": "string"},
+        "status": {"enum": ["passed", "pending", "blocked", "human_required", "not_applicable"]},
+        "requiredForArchive": {"type": "boolean"},
+        "responsibleActor": {"$ref": "#/$defs/actor"},
+        "evidence": {"type": "array", "items": {"type": "string"}},
+        "instruction": {"type": "string"},
+        "onFailure": {"enum": ["repair_as_candidate", "await_human", "stop_and_report"]}
+      }
+    },
+    "nextAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["checkId", "actor", "instruction"],
+      "properties": {
+        "checkId": {"anyOf": [{"type": "string", "minLength": 1}, {"type": "null"}]},
+        "actor": {"$ref": "#/$defs/actor"},
+        "instruction": {"type": "string"}
+      }
+    },
+    "workUnit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "moduleKey",
+        "title",
+        "kind",
+        "ordinal",
+        "state",
+        "sourceRefKeys",
+        "incomingRelations",
+        "outgoingRelations",
+        "allowedWrite"
+      ],
+      "properties": {
+        "moduleKey": {"type": "string", "minLength": 1},
+        "title": {"type": "string"},
+        "kind": {"type": "string"},
+        "ordinal": {"type": "integer", "minimum": 0},
+        "state": {"enum": ["needs_decomposition", "needs_human_review", "human_confirmed"]},
+        "sourceRefKeys": {"type": "array", "items": {"type": "string"}},
+        "incomingRelations": {"type": "integer", "minimum": 0},
+        "outgoingRelations": {"type": "integer", "minimum": 0},
+        "allowedWrite": {"const": "candidate_patch_only"}
+      }
+    },
+    "permissions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nextAllowedActions", "forbiddenActions", "patchDecisionAuthority", "completionAuthority"],
+      "properties": {
+        "nextAllowedActions": {"type": "array", "items": {"type": "string"}},
+        "forbiddenActions": {"type": "array", "items": {"type": "string"}},
+        "patchDecisionAuthority": {"const": "owner_or_authorized_coordinator_only"},
+        "completionAuthority": {"const": "coordinator_only"}
+      }
+    },
+    "completionBoundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "archiveRecordVerified",
+        "editorialComplete",
+        "artifactDelivered",
+        "submissionAccepted",
+        "destinationRecordVerified",
+        "publicAccessVerified",
+        "outcomeVerified"
+      ],
+      "properties": {
+        "archiveRecordVerified": {"type": "boolean"},
+        "editorialComplete": {"const": false},
+        "artifactDelivered": {"const": false},
+        "submissionAccepted": {"const": false},
+        "destinationRecordVerified": {"const": false},
+        "publicAccessVerified": {"const": false},
+        "outcomeVerified": {"const": false}
+      }
+    }
+  }
+}

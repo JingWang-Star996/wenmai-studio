@@ -1,0 +1,1 @@
+ALTER TABLE `branch_working_copies` ADD `lock_version` integer DEFAULT 1 NOT NULL;

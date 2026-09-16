@@ -1,0 +1,112 @@
+{
+  "schemaVersion": "wenmai.agent-discovery/1.0",
+  "name": "文脉本地文章工厂 Agent",
+  "language": "zh-CN",
+  "protocolVersion": "wenmai.agent/1.0",
+  "manifest": "/agent/manifest.json",
+  "apiContract": "/agent/api/v1.json",
+  "systemPrompt": "/agent/prompts/system.md",
+  "mcp": "/agent/mcp.json",
+  "dataInterfaces": {
+    "corpusClassificationAndLineage": "/api/corpus/v1?view=manifest",
+    "dynamicCapabilities": "/api/capabilities",
+    "articleProjectPackages": "/api/agent/v1?view=project_manifest",
+    "projectGroups": "/api/agent/v1?view=project_group_manifest",
+    "sharedSources": "/api/agent/v1?view=shared_source_manifest",
+    "sharedArticles": "/api/agent/v1?view=articles"
+  },
+  "schemas": {
+    "task": "/agent/schemas/task.schema.json",
+    "context": "/agent/schemas/context.schema.json",
+    "progress": "/agent/schemas/progress.schema.json",
+    "artifact": "/agent/schemas/artifact.schema.json",
+    "graphProposal": "/agent/schemas/graph-proposal.schema.json"
+  },
+  "runtime": {
+    "endpoint": "/api/agent/v1",
+    "status": "implemented",
+    "transport": "single_endpoint_loopback_http_or_explicit_tailscale_https_json",
+    "networkModes": {
+      "loopbackHttp": {
+        "scheme": "http",
+        "ipLiterals": ["127.0.0.1", "::1"],
+        "configuration": "--base-url"
+      },
+      "tailscaleHttps": {
+        "scheme": "https",
+        "hostnamePolicy": "exact_ascii_machine_tailnet_ts_net",
+        "configuration": "--trusted-tailscale-host",
+        "defaultPort": 443,
+        "gatewayAuthentication": "same_agent_bearer_required_for_all_allowlisted_paths",
+        "tlsCertificateVerification": "required",
+        "tlsHostnameVerification": "required"
+      }
+    },
+    "readShape": "GET ?view=<stable-view>",
+    "writeShape": "POST {action,commandId,payload}",
+    "agentAuthentication": "bearer",
+    "managementAuthentication": "browser_only_host_session_plus_origin_bound_browser_binding_plus_in_memory_csrf",
+    "projectReadAuthentication": "agent_bearer_plus_package.read",
+    "projectReadManagementCredentialSubstitution": "forbidden",
+    "projectGroupReadAuthentication": "agent_bearer_plus_package.read_complete_group_scope",
+    "projectGroupPartialDisclosure": "forbidden; list omits partial groups and detail rejects without topology/title/edge/hash disclosure",
+    "projectGroupEmptyGroupScope": "star-scoped Agent tokens may read empty groups; restricted tokens omit them and detail fails 403 without disclosure",
+    "projectGroupListProjection": "bounded summary only: group metadata, memberCount, edgeCount, storedTopologySha256, detailRequiredForTopology",
+    "projectGroupDetailReadLimits": {"members": 256, "edges": 2048, "exceeded": "PROJECT_GROUP_READ_LIMIT_EXCEEDED", "status": 409, "partialDataReturned": false},
+    "projectGroupReadSideEffects": {"projectGroupBusinessWrites": false, "tablesEventsReceiptsUnchanged": true, "authenticationLastSeenTelemetryMayUpdate": true},
+    "projectGroupWrites": "owner_management_api_only",
+    "sharedArticleReadAuthentication": "agent_bearer_plus_article.read_exact_article_scope",
+    "collaborationShare": {
+      "schemaVersion": "wenmai.share-grant/1",
+      "modes": {
+        "viewer": {"scopes": ["article.read"], "articleBinding": "exactly_one_existing_article", "taskBinding": "forbidden"},
+        "editor": {"scopes": ["article.read", "task.read", "task.claim", "task.progress", "context.read", "artifact.create", "approval.request", "branch.agent_write"], "articleBinding": "exactly_one_existing_article", "taskBinding": "exactly_one_valid_non_terminal_Agent_Branch_task_of_that_article_revalidated_each_request", "writeBoundary": "Agent_Branch_candidate_only"}
+      },
+      "articleRevisionPolicy": "authoritative-current; unique active D1 Package primary Branch head wins and invalid D1 identity fails closed; otherwise use the operative corpus representative source",
+      "lifetime": {"defaultDays": 7, "maximumDays": 30},
+      "portableAccessFile": {"schemaVersion": "wenmai.agent-access-file/1", "kind": "portable-share-grant", "contents": "one existing wenmai.share-grant/1 connectionCard plus its Bearer credential", "secret": true, "possessionIsAuthority": true, "allowedGrantOnly": true, "forbiddenCredentialClasses": ["advanced", "administrator"], "defaultLifetimeDays": {"viewer": 7, "editor": 1}, "maximumLifetimeDays": 30, "serverAuthority": "agent_clients status, expiry and revocation are authoritative", "holderAuthority": "holder has the granted Share Grant permissions until expiry or revocation", "credentialExposure": "never place the Bearer credential in URL, argv, logs or connectionCard", "storage": {"treatLike": "SSH private key", "posixMode": "0600", "windowsDpapiImport": "optional existing CurrentUser import"}, "lossResponse": "revoke immediately by clientId", "gatewayActivationImplied": false, "crossDeviceOrPublicVerificationClaim": false},
+      "forbidden": ["main_write", "merge", "release", "publish", "token", "identity", "delete"],
+      "crossDevice": "Tailscale HTTPS may be configured with the same Agent Bearer; gateway activation must be separately enabled and verified, and this discovery document does not claim public Internet deployment."
+    },
+    "roleAccess": {
+      "schemaVersion": "wenmai.role-grant/1",
+      "portableAccessFile": {"schemaVersion": "wenmai.agent-access-file/1", "kind": "portable-role-grant", "secret": true, "possessionIsAuthority": true, "credentialExposure": "never URL, argv or logs", "gatewayActivationImplied": false, "crossDeviceOrPublicVerificationClaim": false},
+      "roles": {
+        "content-steward": {"scopesExact": ["task.read", "context.read", "knowledge.read", "graph.read", "package.read", "shared_source.read", "task.manage"], "actionIdsExact": ["agent.v1.cancel_task", "agent.v1.create_task", "agent.v1.update_task"], "articleScope": "all_articles_including_future", "taskIds": [], "maximumLifetimeDays": 7, "transport": "local_or_exact_tailscale"},
+        "article-worker": {"scopesExact": ["task.read", "task.claim", "task.progress", "context.read", "knowledge.read", "graph.read", "artifact.create", "approval.request", "graph.propose", "branch.agent_write", "package.read", "package.patch.propose"], "actionIdsExact": [], "articleScope": "all_articles_including_future", "taskIds": [], "maximumLifetimeDays": 7, "transport": "local_or_exact_tailscale", "graphProposeBoundary": "candidate graph or deduplication relation proposal only; never confirm, merge, delete or apply"},
+        "local-registrar": {"scopesExact": ["article.import.new_root"], "actionIdsExact": [], "articleScope": "all_articles_including_future", "taskIds": [], "maximumLifetimeDays": 1, "transport": "loopback_only", "boundary": "new root registration only; cannot list articles, read existing body text or overwrite; exact articleId plus bodySha256 may read back bounded registration status metadata"}
+      },
+      "developmentAndUpgrade": "local Git, worktree, tests and review only; never use a Bearer role grant",
+      "currentGaps": ["no safe Agent write API for deduplication final merge", "no safe Agent write API for workflow fission new roots"],
+      "forbidden": ["token.issue", "token.revoke", "identity", "approval.decide", "merge.apply", "release.approve", "publish", "send", "delete", "secret"]
+    }
+  },
+  "precedence": [
+    {
+      "rank": 1,
+      "kind": "runtime_workspace_and_human_decisions",
+      "authority": "current_operational_fact",
+      "source": "/api/agent/v1?view=context&taskId={taskId}"
+    },
+    {
+      "rank": 2,
+      "kind": "historical_source_artifacts",
+      "authority": "observed_source_fact",
+      "source": "/api/agent/v1?view=knowledge&q={query}"
+    },
+    {
+      "rank": 3,
+      "kind": "generated_relations_and_opportunities",
+      "authority": "derived_suggestion",
+      "source": "/api/agent/v1?view=graph&seed={nodeIds}"
+    },
+    {
+      "rank": 4,
+      "kind": "agent_output",
+      "authority": "draft_only",
+      "source": "/api/agent/v1 action=add_artifact"
+    }
+  ],
+  "approvalRule": "Agent 工件始终是 draft；只有绑定当前输入摘要的人工决定才能提升状态。",
+  "externalSideEffects": "forbidden"
+}

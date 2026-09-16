@@ -1,0 +1,32 @@
+CREATE TABLE `model_invocation_outputs` (
+	`invocation_id` text PRIMARY KEY NOT NULL,
+	`materialization_kind` text NOT NULL,
+	`response_json` text NOT NULL,
+	`response_sha256` text NOT NULL,
+	`usage_json` text DEFAULT '{}' NOT NULL,
+	`usage_sha256` text NOT NULL,
+	`materialization_state` text DEFAULT 'checkpointed' NOT NULL,
+	`materialization_ref` text DEFAULT '' NOT NULL,
+	`materialization_lease_owner` text,
+	`materialization_lease_expires_at` text,
+	`materialization_attempts` integer DEFAULT 0 NOT NULL,
+	`materialization_lock_version` integer DEFAULT 1 NOT NULL,
+	`last_error_class` text,
+	`last_error_summary` text,
+	`created_at` text NOT NULL,
+	`updated_at` text NOT NULL,
+	`materialized_at` text,
+	CONSTRAINT "model_invocation_outputs_kind_check" CHECK("model_invocation_outputs"."materialization_kind" IN ('probe','candidate','evaluation','review')),
+	CONSTRAINT "model_invocation_outputs_state_check" CHECK("model_invocation_outputs"."materialization_state" IN ('checkpointed','materializing','materialized','blocked')),
+	CONSTRAINT "model_invocation_outputs_response_json_check" CHECK(json_valid("model_invocation_outputs"."response_json") AND json_type("model_invocation_outputs"."response_json") = 'object' AND length(CAST("model_invocation_outputs"."response_json" AS BLOB)) BETWEEN 2 AND 262144),
+	CONSTRAINT "model_invocation_outputs_usage_json_check" CHECK(json_valid("model_invocation_outputs"."usage_json") AND json_type("model_invocation_outputs"."usage_json") = 'object' AND length(CAST("model_invocation_outputs"."usage_json" AS BLOB)) BETWEEN 2 AND 8192),
+	CONSTRAINT "model_invocation_outputs_response_sha_check" CHECK(length("model_invocation_outputs"."response_sha256") = 64 AND "model_invocation_outputs"."response_sha256" NOT GLOB '*[^0-9a-f]*'),
+	CONSTRAINT "model_invocation_outputs_usage_sha_check" CHECK(length("model_invocation_outputs"."usage_sha256") = 64 AND "model_invocation_outputs"."usage_sha256" NOT GLOB '*[^0-9a-f]*'),
+	CONSTRAINT "model_invocation_outputs_attempt_check" CHECK("model_invocation_outputs"."materialization_attempts" >= 0 AND "model_invocation_outputs"."materialization_lock_version" >= 1),
+	CONSTRAINT "model_invocation_outputs_ref_check" CHECK(length(CAST("model_invocation_outputs"."materialization_ref" AS BLOB)) <= 512),
+	CONSTRAINT "model_invocation_outputs_error_check" CHECK(("model_invocation_outputs"."last_error_class" IS NULL OR length(CAST("model_invocation_outputs"."last_error_class" AS BLOB)) BETWEEN 1 AND 80) AND ("model_invocation_outputs"."last_error_summary" IS NULL OR length(CAST("model_invocation_outputs"."last_error_summary" AS BLOB)) BETWEEN 1 AND 512)),
+	CONSTRAINT "model_invocation_outputs_lease_check" CHECK(("model_invocation_outputs"."materialization_state" = 'materializing' AND "model_invocation_outputs"."materialization_lease_owner" IS NOT NULL AND length(trim("model_invocation_outputs"."materialization_lease_owner")) > 0 AND "model_invocation_outputs"."materialization_lease_expires_at" IS NOT NULL) OR ("model_invocation_outputs"."materialization_state" <> 'materializing' AND "model_invocation_outputs"."materialization_lease_owner" IS NULL AND "model_invocation_outputs"."materialization_lease_expires_at" IS NULL)),
+	CONSTRAINT "model_invocation_outputs_materialized_check" CHECK(("model_invocation_outputs"."materialization_state" = 'materialized' AND "model_invocation_outputs"."materialized_at" IS NOT NULL AND ("model_invocation_outputs"."materialization_kind" = 'probe' OR length(trim("model_invocation_outputs"."materialization_ref")) > 0)) OR ("model_invocation_outputs"."materialization_state" <> 'materialized' AND "model_invocation_outputs"."materialized_at" IS NULL))
+);
+--> statement-breakpoint
+CREATE INDEX `idx_model_invocation_outputs_state_updated` ON `model_invocation_outputs` (`materialization_state`,`updated_at`);

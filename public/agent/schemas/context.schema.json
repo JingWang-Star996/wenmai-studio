@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "/agent/schemas/context.schema.json",
+  "title": "Wenmai Agent Frozen Context Snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id", "taskId", "articleId", "branchId", "revisionId", "bodySha256", "corpusSchemaVersion",
+    "corpusAlgorithmVersion", "corpusGeneratedAt", "corpusSha256", "graphSha256", "rulesSha256",
+    "packageId", "compositionId", "compositionSha256", "packageDocumentSha256", "packageLockVersion",
+    "branchHeadRevisionId", "baseRevisionId", "baseBranchLockVersion", "moduleGraphSha256",
+    "diagnosisSummarySha256", "bundle", "contextSha256", "createdAt"
+  ],
+  "properties": {
+    "id": {"$ref": "#/$defs/stableId"},
+    "taskId": {"$ref": "#/$defs/stableId"},
+    "articleId": {"$ref": "#/$defs/stableId"},
+    "branchId": {"anyOf": [{"$ref": "#/$defs/stableId"}, {"type": "null"}]},
+    "revisionId": {"$ref": "#/$defs/stableId"},
+    "bodySha256": {"$ref": "#/$defs/sha256"},
+    "corpusSchemaVersion": {"type": "string", "minLength": 1, "maxLength": 120},
+    "corpusAlgorithmVersion": {"type": "string", "minLength": 1, "maxLength": 120},
+    "corpusGeneratedAt": {"type": "string", "format": "date-time"},
+    "corpusSha256": {"$ref": "#/$defs/sha256"},
+    "graphSha256": {"$ref": "#/$defs/sha256"},
+    "rulesSha256": {"$ref": "#/$defs/sha256"},
+    "packageId": {"$ref": "#/$defs/nullableId"},
+    "compositionId": {"$ref": "#/$defs/nullableId"},
+    "compositionSha256": {"$ref": "#/$defs/nullableSha256"},
+    "packageDocumentSha256": {"$ref": "#/$defs/nullableSha256"},
+    "packageLockVersion": {"$ref": "#/$defs/nullablePositiveInteger"},
+    "branchHeadRevisionId": {"$ref": "#/$defs/nullableId"},
+    "baseRevisionId": {"$ref": "#/$defs/stableId"},
+    "baseBranchLockVersion": {"$ref": "#/$defs/nullablePositiveInteger"},
+    "moduleGraphSha256": {"$ref": "#/$defs/nullableSha256"},
+    "diagnosisSummarySha256": {"$ref": "#/$defs/nullableSha256"},
+    "bundle": {"$ref": "#/$defs/bundle"},
+    "contextSha256": {"$ref": "#/$defs/sha256"},
+    "createdAt": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {
+    "stableId": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$"},
+    "nullableId": {"anyOf": [{"$ref": "#/$defs/stableId"}, {"type": "null"}]},
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "nullableSha256": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+    "nullablePositiveInteger": {"anyOf": [{"type": "integer", "minimum": 1}, {"type": "null"}]},
+    "bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "task", "source", "corpus", "graph", "adoptedRules", "packageBaseline", "packageContext", "permissionCeiling", "immutableRules"],
+      "properties": {
+        "schemaVersion": {"const": "wenmai-agent-v1"},
+        "task": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "title", "objective", "instructionsMd", "acceptance", "contextSpec", "targetModuleKey"],
+          "properties": {
+            "id": {"$ref": "#/$defs/stableId"},
+            "title": {"type": "string"},
+            "objective": {"type": "string"},
+            "instructionsMd": {"type": "string"},
+            "acceptance": {"type": "array"},
+            "contextSpec": {"type": "object"},
+            "targetModuleKey": {"anyOf": [{"$ref": "#/$defs/moduleKey"}, {"type": "null"}]}
+          }
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["articleId", "branchId", "revisionId", "documentTitle", "bodySha256", "bodyText"],
+          "properties": {
+            "articleId": {"$ref": "#/$defs/stableId"},
+            "branchId": {"anyOf": [{"$ref": "#/$defs/stableId"}, {"type": "null"}]},
+            "revisionId": {"$ref": "#/$defs/stableId"},
+            "documentTitle": {"type": "string", "minLength": 1},
+            "bodySha256": {"$ref": "#/$defs/sha256"},
+            "bodyText": {"type": "string", "minLength": 1, "maxLength": 600000}
+          }
+        },
+        "corpus": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schemaVersion", "algorithmVersion", "generatedAt", "sha256"],
+          "properties": {
+            "schemaVersion": {"type": "string"},
+            "algorithmVersion": {"type": "string"},
+            "generatedAt": {"type": "string", "format": "date-time"},
+            "sha256": {"$ref": "#/$defs/sha256"}
+          }
+        },
+        "graph": {
+          "type": "object",
+          "required": ["nodes", "edges", "truncated"],
+          "properties": {
+            "nodes": {"type": "array", "maxItems": 100},
+            "edges": {"type": "array", "maxItems": 100},
+            "truncated": {"type": "boolean"}
+          }
+        },
+        "adoptedRules": {"type": "array", "maxItems": 40, "items": {"type": "object"}},
+        "packageBaseline": {
+          "anyOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["packageId", "branchId", "baseRevisionId", "baseBranchLockVersion", "compositionId", "compositionSha256", "moduleGraphSha256", "diagnosisSummarySha256", "guidanceChecklistSha256", "targetModuleKey"],
+              "properties": {
+                "packageId": {"$ref": "#/$defs/stableId"},
+                "branchId": {"$ref": "#/$defs/stableId"},
+                "baseRevisionId": {"$ref": "#/$defs/stableId"},
+                "baseBranchLockVersion": {"type": "integer", "minimum": 1},
+                "compositionId": {"$ref": "#/$defs/stableId"},
+                "compositionSha256": {"$ref": "#/$defs/sha256"},
+                "moduleGraphSha256": {"$ref": "#/$defs/sha256"},
+                "diagnosisSummarySha256": {"$ref": "#/$defs/sha256"},
+                "guidanceChecklistSha256": {"$ref": "#/$defs/sha256"},
+                "targetModuleKey": {"$ref": "#/$defs/moduleKey"}
+              }
+            }
+          ]
+        },
+        "packageContext": {
+          "anyOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "required": ["guidanceChecklist", "allowedPatchOperations", "patchTarget", "writeBoundary"],
+              "properties": {
+                "guidanceChecklist": {"$ref": "article-guidance-checklist.schema.json"},
+                "allowedPatchOperations": {
+                  "const": ["replace_module", "remove_module", "upsert_edge", "remove_edge"]
+                },
+                "patchTarget": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["targetModuleKey", "moduleScope", "edgeScope", "allowModuleRename", "allowAddModule", "allowReplaceDocument"],
+                  "properties": {
+                    "targetModuleKey": {"$ref": "#/$defs/moduleKey"},
+                    "moduleScope": {"const": "single_existing_module"},
+                    "edgeScope": {"const": "incident_to_target_only"},
+                    "allowModuleRename": {"const": false},
+                    "allowAddModule": {"const": false},
+                    "allowReplaceDocument": {"const": false}
+                  }
+                },
+                "writeBoundary": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["candidateOnly", "directApply", "compositionAdvance", "articleBranchAdvance", "targetModuleKey", "singleExistingModuleOnly", "incidentEdgesOnly"],
+                  "properties": {
+                    "candidateOnly": {"const": true},
+                    "directApply": {"const": false},
+                    "compositionAdvance": {"const": false},
+                    "articleBranchAdvance": {"const": false},
+                    "targetModuleKey": {"$ref": "#/$defs/moduleKey"},
+                    "singleExistingModuleOnly": {"const": true},
+                    "incidentEdgesOnly": {"const": true}
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "permissionCeiling": {"type": "object"},
+        "immutableRules": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["generatedCorpusReadOnly", "directMainWrite", "mergeMain", "editorialApproval", "releaseApproval", "externalSubmit", "ruleAdoption", "graphMutation", "packageMutation", "outputStatus"],
+          "properties": {
+            "generatedCorpusReadOnly": {"const": true},
+            "directMainWrite": {"const": false},
+            "mergeMain": {"const": false},
+            "editorialApproval": {"const": false},
+            "releaseApproval": {"const": false},
+            "externalSubmit": {"const": false},
+            "ruleAdoption": {"const": false},
+            "graphMutation": {"const": "proposal_only"},
+            "packageMutation": {"enum": ["candidate_patch_only", "unavailable"]},
+            "outputStatus": {"const": "candidate_or_draft"}
+          }
+        }
+      }
+    },
+    "moduleKey": {"type": "string", "minLength": 1, "maxLength": 120}
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "1970-01-01T00:00:00.000Z",
+  "roots": [],
+  "dimensions": [],
+  "stats": {
+    "capabilities": 0,
+    "skills": 0,
+    "gates": 0,
+    "workflows": 0,
+    "templates": 0,
+    "explicitMaterialLinks": 0,
+    "inferredMaterialLinks": 0
+  },
+  "capabilities": [],
+  "gaps": [],
+  "notes": [
+    "No personal capability inventory is included in the public repository."
+  ]
+}

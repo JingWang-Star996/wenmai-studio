@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "wenmai.annotation-rsi-contract/2.0",
+  "purpose": "Agent-first article improvement with human labels and explicit baseline approval.",
+  "tables": [
+    "article_requirements",
+    "human_annotations",
+    "annotation_rsi_rule_candidates",
+    "annotation_rsi_baseline_revisions",
+    "annotation_rsi_due_checks"
+  ],
+  "views": [
+    "requirements",
+    "annotations",
+    "proposal-context",
+    "proposal-summary",
+    "rule-candidates",
+    "baseline-revisions",
+    "due-checks",
+    "command"
+  ],
+  "actions": [
+    "initialize_workspace",
+    "create_requirement",
+    "accept_requirement",
+    "supersede_requirement",
+    "create_human_annotation",
+    "record_external_ai_observation",
+    "create_rule_candidate",
+    "approve_rule_candidate",
+    "run_due_check"
+  ],
+  "humanOnly": [
+    "accept_requirement",
+    "supersede_requirement",
+    "create_human_annotation",
+    "record_external_ai_observation",
+    "approve_rule_candidate"
+  ],
+  "limits": {
+    "requestBytes": 122880,
+    "candidateSourceBindings": 64,
+    "candidateVariants": 16,
+    "ruleJsonBytes": 32768,
+    "proposalItems": 32
+  },
+  "invariants": {
+    "annotations": "append-only; correction uses supersedesAnnotationId",
+    "candidate": "advisory until a human approves it",
+    "baseline": "immutable and linked to one approved candidate",
+    "dueCheck": "stores only timestamps, source-set digest and a compact source summary",
+    "cas": "candidate hashes, lockVersion and current baseline head must match at approval"
+  },
+  "removed": [
+    "review queue and snooze state",
+    "non-authoritative gate attestations",
+    "per-request index, trigger and foreign-key topology audit",
+    "per-source SQL guards and 2560-source claims"
+  ],
+  "notClaimed": [
+    "automatic rule adoption",
+    "automatic gate activation",
+    "automatic publication",
+    "real D1 migration",
+    "running-site validation"
+  ],
+  "migration": "local 0031 consolidation pending generation"
+}

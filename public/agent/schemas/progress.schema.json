@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "/agent/schemas/progress.schema.json",
+  "title": "Wenmai Agent Progress Event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "cursor", "id", "taskId", "attemptId", "eventType", "phase", "progressPercent", "currentAction",
+    "nextAction", "blocker", "message", "evidence", "payload", "actorKind", "actorId", "commandId",
+    "inputSha256", "createdAt"
+  ],
+  "properties": {
+    "cursor": {"type": "integer", "minimum": 1},
+    "id": {"$ref": "#/$defs/stableId"},
+    "taskId": {"$ref": "#/$defs/stableId"},
+    "attemptId": {"anyOf": [{"$ref": "#/$defs/stableId"}, {"type": "null"}]},
+    "eventType": {"type": "string", "minLength": 1, "maxLength": 120},
+    "phase": {"type": "string", "maxLength": 120},
+    "progressPercent": {"anyOf": [{"type": "integer", "minimum": 0, "maximum": 100}, {"type": "null"}]},
+    "currentAction": {"type": "string", "maxLength": 1000},
+    "nextAction": {"type": "string", "maxLength": 1000},
+    "blocker": {"type": "string", "maxLength": 2000},
+    "message": {"type": "string", "maxLength": 4000},
+    "evidence": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 2000}},
+    "payload": {"type": "object"},
+    "actorKind": {"enum": ["user", "agent", "system"]},
+    "actorId": {"type": "string", "minLength": 1, "maxLength": 160},
+    "commandId": {"anyOf": [{"$ref": "#/$defs/stableId"}, {"type": "null"}]},
+    "inputSha256": {"$ref": "#/$defs/sha256"},
+    "createdAt": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {
+    "stableId": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$"},
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  }
+}

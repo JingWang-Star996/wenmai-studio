@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "/agent/schemas/task.schema.json",
+  "title": "Wenmai Agent Task Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id", "workItemId", "articleId", "projectId", "packageId", "baseCompositionId",
+    "baseCompositionSha256", "baseRevisionId", "baseBranchLockVersion", "targetBranchId", "currentContextSnapshotId",
+    "activeAttemptId", "assignedClientId", "title", "objective", "instructionsMd", "acceptance",
+    "contextSpec", "permissionCeiling", "priority", "state", "lockVersion", "createdBy", "createdAt",
+    "updatedAt", "finishedAt", "cancelledAt"
+  ],
+  "properties": {
+    "id": {"$ref": "#/$defs/stableId"},
+    "workItemId": {"$ref": "#/$defs/nullableId"},
+    "articleId": {"$ref": "#/$defs/stableId"},
+    "projectId": {"$ref": "#/$defs/nullableId"},
+    "packageId": {"$ref": "#/$defs/nullableId"},
+    "baseCompositionId": {"$ref": "#/$defs/nullableId"},
+    "baseCompositionSha256": {"$ref": "#/$defs/nullableSha256"},
+    "baseRevisionId": {"$ref": "#/$defs/nullableId"},
+    "baseBranchLockVersion": {"$ref": "#/$defs/nullablePositiveInteger"},
+    "targetBranchId": {"$ref": "#/$defs/nullableId"},
+    "currentContextSnapshotId": {"$ref": "#/$defs/nullableId"},
+    "activeAttemptId": {"$ref": "#/$defs/nullableId"},
+    "assignedClientId": {"$ref": "#/$defs/nullableId"},
+    "title": {"type": "string", "minLength": 1, "maxLength": 240},
+    "objective": {"type": "string", "minLength": 1, "maxLength": 8000},
+    "instructionsMd": {"type": "string", "maxLength": 20000},
+    "acceptance": {"type": "array", "maxItems": 60},
+    "contextSpec": {
+      "type": "object",
+      "properties": {
+        "targetModuleKey": {"$ref": "#/$defs/moduleKey"}
+      }
+    },
+    "permissionCeiling": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allow", "deny", "writeScope", "branchWrite", "packagePatch", "externalSideEffects", "humanApprovalRequired"],
+      "properties": {
+        "allow": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "deny": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "writeScope": {"enum": ["artifact-only", "agent-branch", "graph-proposal", "package-patch"]},
+        "branchWrite": {"type": "boolean"},
+        "packagePatch": {"type": "boolean"},
+        "externalSideEffects": {"const": false},
+        "humanApprovalRequired": {"const": true}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"writeScope": {"const": "agent-branch"}}, "required": ["writeScope"]},
+          "then": {
+            "properties": {
+              "branchWrite": {"const": true},
+              "allow": {"contains": {"const": "branch.agent_write"}}
+            }
+          },
+          "else": {"properties": {"branchWrite": {"const": false}}}
+        },
+        {
+          "if": {"properties": {"writeScope": {"const": "package-patch"}}, "required": ["writeScope"]},
+          "then": {
+            "properties": {
+              "packagePatch": {"const": true},
+              "allow": {"contains": {"const": "package.patch.propose"}}
+            }
+          },
+          "else": {"properties": {"packagePatch": {"const": false}}}
+        }
+      ]
+    },
+    "priority": {"enum": ["P0", "P1", "P2", "P3"]},
+    "state": {"enum": ["draft", "queued", "claimed", "running", "awaiting_human", "blocked", "review", "succeeded", "failed", "cancelled"]},
+    "lockVersion": {"type": "integer", "minimum": 1},
+    "createdBy": {"type": "string", "minLength": 1, "maxLength": 120},
+    "createdAt": {"type": "string", "format": "date-time"},
+    "updatedAt": {"type": "string", "format": "date-time"},
+    "finishedAt": {"$ref": "#/$defs/nullableDateTime"},
+    "cancelledAt": {"$ref": "#/$defs/nullableDateTime"}
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": ["permissionCeiling"],
+        "properties": {
+          "permissionCeiling": {
+            "required": ["writeScope"],
+            "properties": {"writeScope": {"const": "package-patch"}}
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "contextSpec": {"required": ["targetModuleKey"]},
+          "permissionCeiling": {
+            "properties": {
+              "packagePatch": {"const": true},
+              "allow": {"contains": {"const": "package.patch.propose"}}
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "stableId": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$"},
+    "nullableId": {"anyOf": [{"$ref": "#/$defs/stableId"}, {"type": "null"}]},
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "nullableSha256": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+    "nullablePositiveInteger": {"anyOf": [{"type": "integer", "minimum": 1}, {"type": "null"}]},
+    "nullableDateTime": {"anyOf": [{"type": "string", "format": "date-time"}, {"type": "null"}]},
+    "moduleKey": {"type": "string", "minLength": 1, "maxLength": 120}
+  }
+}

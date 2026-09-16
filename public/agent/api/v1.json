@@ -1,0 +1,675 @@
+{
+  "schemaVersion": "wenmai.agent-api/1.0-v5",
+  "protocolVersion": "wenmai.agent/1.0",
+  "endpoint": "/api/agent/v1",
+  "runtimeStatus": "implemented",
+  "transport": {
+    "scheme": "http",
+    "network": "127.0.0.1_or_ipv6_loopback_literal_only",
+    "tailscaleHttps": {
+      "scheme": "https",
+      "hostnamePolicy": "exact_ascii_machine_tailnet_ts_net",
+      "configuration": "--trusted-tailscale-host",
+      "originConstruction": "https://<trusted-tailscale-host>",
+      "defaultPort": 443,
+      "gatewayAuthentication": "same_agent_bearer_required_for_agent_api_and_allowlisted_metadata",
+      "tlsCertificateVerification": "required",
+      "tlsHostnameVerification": "required",
+      "rawTailscaleIpAccepted": false
+    },
+    "requestMediaType": "application/json",
+    "responseMediaType": "application/json",
+    "redirects": "forbidden",
+    "proxies": "disabled",
+    "maxServerRequestBytes": 2200000,
+    "stdioClientDefaultRequestBytes": 300000,
+    "stdioClientDefaultTimeoutSeconds": 8
+  },
+  "authentication": {
+    "agent": {
+      "type": "bearer",
+      "header": "Authorization",
+      "format": "Bearer <token>",
+      "tokenLogging": "forbidden",
+      "browserOriginHeader": "omit_to_preserve_agent_object_scope"
+    },
+    "privilegedAgentRoles": {
+      "issuer": "authenticated owner browser management session only",
+      "legacyFrozenProfiles": "The administrator and superAdmin fixed wildcard profiles are only for interpreting existing legacy Keys. They are not current v3 issuance defaults.",
+      "v3CurrentIssuance": {
+        "permissionCatalog": {"endpoint": "GET /api/agent/v1?view=permission_catalog", "ownerBrowserSessionRequired": true, "bearerForbidden": true, "returns": ["schemaVersion", "catalogVersion", "scopes", "presets", "articleObjects"]},
+        "catalogDigest": "The GET response also contains catalogSha256, the canonical SHA-256 binding the complete catalog and presets.",
+        "presets": ["read_admin", "task_admin", "content_editor_admin", "release_prep_admin", "site_full_control", "custom"],
+        "scopeSelection": "Only delegable=true and newIssuance=true catalog entries are selectable; issuance revalidates role, preset, scope and transport server-side.",
+        "objectBoundary": {"articleIds": "1..200 sorted known concrete IDs; wildcard is forbidden", "taskIds": []},
+        "role": "Derived from selected scopes by the server",
+        "permissionSnapshotV3": ["schemaVersion=3", "catalogVersion", "presetId", "role", "scopes", "actionIds", "articleIds", "taskIds", "snapshotSha256"],
+        "issuanceConfirmation": {"required": ["catalogVersion", "catalogSha256", "confirmedActionIds"], "confirmedActionIds": "sorted and deduplicated exact scope-derived action IDs; [] is valid for read-only presets", "serverVerification": "recomputes catalogSha256 and scopes-to-actions before issuance"},
+        "legacyV3WithoutCatalogSha256": "compatibility-only; it does not automatically expand when the catalog changes",
+        "catalogDrift": "A later catalog change does not expand or invalidate an existing v3 Key; its actionIds remain its immutable authorization snapshot.",
+        "currentScopes": ["task.read", "context.read", "knowledge.read", "graph.read", "package.read", "task.manage", "workspace.branch.write", "workspace.publication_branch.create", "package.branch.attach", "publication.version.register"],
+        "taskManage": {"actionIds": ["agent.v1.create_task", "agent.v1.update_task", "agent.v1.cancel_task"], "agentBranchCreation": "create_task may create a task-owned Agent Branch, initial Revision and WorkingCopy only when branch.agent_write is explicitly requested; it cannot write main or create a publication branch"},
+        "workspaceBranchWrite": {"requiredRole": "super_admin", "transport": "exact [::1] loopback only", "route": "/api/workspace", "actionIds": ["workspace.save_working_copy", "workspace.commit_revision"], "wireActions": ["save_working_copy", "commit_revision"], "stableCommandIdAndCasReceiptRequired": true},
+        "internalHighRiskNewIssuance": ["package.working_copy.save", "package.revision.commit", "approval.decide", "graph.decide", "package.patch.decide", "package.patch.apply", "workspace.merge.prepare", "workspace.merge.resolve", "workspace.merge.apply"],
+        "highRiskIssuance": {"internalAuthorized": true, "publishCapabilityConsumeDelegable": false, "publishCapabilityConsumeNewIssuance": false, "claimBoundary": "consume never proves external publication, submission, destination record, public access or outcome"}
+      },
+      "keyIssueOrRevokeByAgent": {"ordinaryAgent": false, "siteFullControlRoot": true, "requiredScopes": ["token.issue", "token.revoke"], "transport": "exact [::1] loopback only"},
+      "siteFullControl": {
+        "catalogVersion": "2026-09-10.1",
+        "scope": "site.full_control",
+        "role": "super_admin",
+        "transport": "exact [::1] loopback only",
+        "articleIds": ["*"],
+        "includesFutureArticles": true,
+        "taskIds": [],
+        "maximumLifetimeDays": 7,
+        "actionIds": ["auth.site_full_control.direct", "auth.site_full_control.exchange"],
+        "credentialPurpose": "site_full_control",
+        "directAgentApi": true,
+        "keyBoundary": "one-time plaintext display; Authorization header only; never URL, JSON body, storage, log or receipt",
+        "sessionBoundary": "host-only HttpOnly SameSite=Strict cookie with browser-header and body-SHA-256 binding; fixed commandId",
+        "invalidators": ["next_exchange", "key_revocation", "key_expiry", "permission_snapshot_drift"],
+        "notAuthorized": ["runner", "tailscale", "trusted_device_enrollment", "platform_login", "password", "captcha", "two_factor_authentication", "account_switch", "external_publish_click", "publish_capability_issue_or_consume", "public_visibility_claim"],
+        "permissionSnapshotStorageSchemaVersion": 3,
+        "rootPermissionSnapshotDocumentSchemaVersion": 5,
+        "managementProjectionVersion": "wenmai.site-full-control-management-projection/v5",
+        "managementScopes": ["management.read", "editorial.write", "identity.decide", "workspace.branch.write", "workspace.revision.commit", "workspace.merge.apply", "capability.override", "lifecycle.write", "release.approve", "release.record", "rule.adopt", "package.write", "package.patch.decide", "token.issue", "token.revoke", "task.manage", "runner.manage", "admin.diagnostics"],
+        "unknownManagementCatalogScope": "fail_closed",
+        "legacyV4RootKey": "exchange_only_reissue_required"
+      },
+      "roleProfilesAreExactAndMutuallyExclusiveWithWorkerCandidateOrLocalImportScopes": true,
+      "administrator": {
+        "role": "administrator",
+        "scopes": ["task.read", "context.read", "knowledge.read", "graph.read", "package.read", "task.manage"],
+        "articleIds": ["*"],
+        "taskIds": [],
+        "maximumLifetimeDays": 30,
+        "transports": ["exact_loopback", "trusted_tailscale_gateway"],
+        "actions": ["create_task", "update_task", "cancel_task"]
+      },
+      "superAdmin": {
+        "legacyFrozenProfile": true,
+        "role": "super_admin",
+        "scopes": ["task.read", "context.read", "knowledge.read", "graph.read", "package.read", "task.manage", "approval.decide", "graph.decide", "package.patch.decide", "package.patch.apply", "workspace.publication_branch.create", "package.branch.attach", "publication.version.register", "workspace.merge.prepare", "workspace.merge.resolve", "workspace.merge.apply", "publish.capability.consume"],
+        "articleIds": ["*"],
+        "taskIds": [],
+        "maximumLifetimeDays": 7,
+        "transports": ["exact_ipv6_loopback_only"],
+        "tailscaleAccepted": false,
+        "actions": ["create_task", "update_task", "cancel_task", "decide_approval", "decide_graph_proposal", "decide_patch", "apply_patch", "create_publication_branch", "attach_branch", "register_publication_version", "prepare_merge", "save_merge_resolution", "merge_revision", "consume_publish_capability"],
+        "forbidden": ["workspace.create_branch", "package.save_working_package", "package.commit", "package.set_primary_branch", "token.issue", "token.revoke", "publish.capability.issue", "login", "password", "captcha", "2FA", "account_switch", "external_publish_click", "completion_or_publication_claim"]
+      },
+      "profileStorage": "Windows DPAPI CurrentUser named profile; generated commands contain no plaintext Key",
+      "genericClientBoundary": "admin_action exposes only task management; super_admin_action uses an exact local-only action-to-route allowlist; arbitrary paths, arbitrary actions, Key or capability issuance, and external publish clicks are not supported"
+    },
+    "management": {
+      "type": "browser_management_session",
+      "canonicalOrigin": "http://[::1]:3000",
+      "launcherAutoOpen": "fixed http://[::1]:3000 only; pairing credential is never placed in a URL, file, or browser storage",
+      "bootstrapEndpoint": "/api/auth",
+      "bootstrapCredential": "startup one-time pairing code required on first use, after clearing browser site data, and after explicit logout",
+      "cookie": "host-only HttpOnly SameSite=Strict",
+      "browserBinding": "256-bit raw secret stored only in localStorage for the exact http://[::1]:3000 origin; server stores SHA-256 only",
+      "browserBindingHeader": "X-Wenmai-Browser-Binding: <origin-bound raw secret>",
+      "trustedDeviceAutoRecovery": {
+        "browserPrivateKey": "IndexedDB non-extractable ECDSA P-256 CryptoKey for the exact canonical origin",
+        "serverStorage": "public JWK plus public-key, browser-binding, nonce and signing-payload SHA-256 digests only; never private key, pairing code, raw nonce, signature or signing payload",
+        "resume": "registered same-browser device signs a short-lived challenge; recovery remains available after the manual pairing challenge expires",
+        "activePairingChallenge": "consumed in the same successful acceptance batch so the manual code cannot be replayed",
+        "explicitLogout": "revokes the server device and clears the browser device key and browser binding; manual pairing is required next time",
+        "evidenceBoundary": "implemented in code and covered by contract plus in-memory D1 integration tests; real-browser cross-process restart recovery is not claimed"
+      },
+      "mutationHeaders": ["Origin: http://[::1]:3000", "X-Wenmai-Browser-Binding: <origin-bound raw secret>", "X-Wenmai-CSRF: <session-bound in-memory token>"],
+      "legacyIntentHeader": "X-Wenmai-Write: 1 is intent only and never authorization",
+      "csrfStorage": "browser module memory only",
+      "availableToStdioClient": false,
+      "agentBearerSubstitution": "forbidden",
+      "protectedBrowserReads": [
+        "/api/editorial",
+        "/api/workspace",
+        "/api/lifecycle",
+        "/api/project-package/v1",
+        "/api/runner",
+        "/api/version-text",
+        "/api/agent/v1 browser-management views except view=manifest; project_* views never accept management credentials"
+      ],
+      "metadataDiscoveryReads": ["/api/corpus/v1", "/api/capabilities"]
+    },
+    "projectReads": {
+      "type": "agent_bearer_only",
+      "requiredScope": "package.read",
+      "views": ["project_manifest", "project_packages", "project_branches", "project_package", "project_diagnostics", "project_slices"],
+      "sqlObjectBoundary": "authenticated agent_clients.article_ids_json",
+      "managementCookieAccepted": false,
+      "browserBindingAccepted": false,
+      "csrfAcceptedAsAuthorization": false,
+      "branchQualifiedViews": ["project_package", "project_diagnostics", "project_slices"]
+    },
+    "projectGroupReads": {
+      "type": "agent_bearer_only",
+      "requiredScope": "package.read",
+      "views": ["project_group_manifest", "project_groups", "project_group"],
+      "completeGroupScopeGate": "every member articleId must be authorized; partial groups are omitted from lists and rejected on detail without topology, title, edge or hash disclosure",
+      "emptyGroupScope": "star-scoped tokens may read empty groups; restricted tokens omit them and detail fails 403 without group disclosure",
+      "listProjection": {
+        "boundedSummary": true,
+        "fields": ["group", "memberCount", "edgeCount", "storedTopologySha256", "detailRequiredForTopology"],
+        "excludes": ["members", "edges", "topology", "integrityStatus"]
+      },
+      "detailReadLimits": {"members": 256, "edges": 2048, "exceeded": "PROJECT_GROUP_READ_LIMIT_EXCEEDED", "status": 409, "partialDataReturned": false},
+      "readOnly": true,
+      "managementCookieAccepted": false,
+      "browserBindingAccepted": false,
+      "csrfAcceptedAsAuthorization": false,
+      "sideEffects": {"projectGroupBusinessWrites": false, "tablesEventsReceiptsUnchanged": true, "authenticationLastSeenTelemetryMayUpdate": true},
+      "ownerMutationsExposed": false
+    },
+    "sharedSourceReads": {
+      "type": "agent_bearer_only",
+      "requiredScope": "shared_source.read",
+      "views": ["shared_source_manifest", "shared_source"],
+      "metadataOnly": true,
+      "gate": "source_current_binding_rights_access_all_required",
+      "excludes": ["body", "excerpt", "content_ref", "raw_provider_ids"],
+      "connector": "unconfigured_unknown_official_general_sync_api_not_verified",
+      "readOnly": true,
+      "managementCookieAccepted": false,
+      "browserBindingAccepted": false,
+      "csrfAcceptedAsAuthorization": false,
+      "sideEffects": {"sharedSourceBusinessWrites": false, "authenticationLastSeenTelemetryMayUpdate": true}
+    },
+    "localImport": {
+      "endpoint": "/api/local-import/v1",
+      "transport": "exact http://[::1]:3000 command-line request only",
+      "browserCookieAccepted": false,
+      "browserOriginAccepted": false,
+      "persistentAgentKeyScope": "article.import.new_root",
+      "persistentAgentKeyScopeSet": "exactly ['article.import.new_root']; no task, knowledge, package, branch or Tailscale-capable Agent scope may be mixed",
+      "persistentAgentKeyObjectBoundary": "articleIds must be exactly ['*']",
+      "persistentAgentKeyTaskBoundary": "taskIds must be empty",
+      "compatibleBootCredential": "per-start DPAPI CurrentUser local-import operator remains supported",
+      "allowedAction": "create_article_from_text",
+      "authorizationProbe": "GET /api/local-import/v1?view=health over exact IPv6 loopback",
+      "contractRead": "GET /api/local-import/v1?view=contract over exact IPv6 loopback",
+      "payload": {
+        "legacyRequired": ["title", "bodyText", "bodySha256", "sourceName", "format"],
+        "optionalStrictDeclaration": "intake: wenmai-local-import-declaration/1.0.0",
+        "unknownFieldsRejected": true,
+        "serverFilePathAccepted": false
+      },
+      "deterministicArchiveWrites": ["SourceRef", "source SHA-256", "module graph", "precedes edges", "archiveIntake metadata"],
+      "readback": ["active/clean/inSync identity", "archiveRecordVerified", "guidedAgentWorkReady", "guidanceChecklist", "checklistSha256", "nextAction"],
+      "policyDefault": "light_archive_pending_human_triage",
+      "humanOnly": ["processing profile confirmation", "editorial approval", "external publish authorization"],
+      "newRootOnly": true,
+      "existingRootMutation": false,
+      "serverFilePathAccepted": false,
+      "tailscaleGatewayExposed": false
+    }
+  },
+  "agentHeaders": {
+    "Accept": "application/json",
+    "Authorization": "Bearer <token>",
+    "Content-Type": "application/json for POST",
+    "X-Wenmai-Agent-Protocol": "wenmai.agent/1.0"
+  },
+  "idempotency": {
+    "agentMutationsRequireCommandId": true,
+    "commandIdFormat": "wmcmd-<32 lowercase sha256 hex>",
+    "derivation": "sha256('wenmai.agent/1.0\\0' + requestId)[0:32]",
+    "sameCommandDifferentCanonicalRequest": "409 COMMAND_ID_REUSED",
+    "managementKeyIssuanceRequiresCommandId": true,
+    "managementKeyIssuanceFirstResponse": "returns the one-time plaintext Key",
+    "managementKeyIssuanceReplay": "returns client metadata with shownOnce=false and no Key",
+    "managementKeyIssuanceReceipt": "persists no plaintext Key; recovery requires revoke and reissue",
+    "privilegedActionsRequireCallerCommandId": true,
+    "privilegedActionReplay": "same commandId plus same canonical actor/action/payload returns the stored receipt; different binding is rejected",
+    "publishCapabilityConsumeMeaning": "D1 CAS consumption only; never external click, submission, destination verification, public access, outcome verification, or completion"
+  },
+  "managementLifecycleWrites": {
+    "endpoint": "/api/lifecycle",
+    "envelope": {"action": "required", "commandId": "required", "payload": "required object"},
+    "commandIdFormat": "[A-Za-z0-9._:-]{1,160}",
+    "actor": "authenticated browser management session principal",
+    "requestSha256": "SHA-256 of canonical {action,actorId,payload}",
+    "receiptHeaders": ["X-Wenmai-Command-Id", "X-Wenmai-Request-Sha256", "X-Wenmai-Replayed"],
+    "sameBindingReplay": "returns the persisted status/body with X-Wenmai-Replayed: true",
+    "differentBinding": "409 COMMAND_ID_REUSED",
+    "pendingReceipt": "409 COMMAND_IN_PROGRESS; fail closed and do not blind-retry"
+  },
+  "privilegedPublicationBranchPipeline": {
+    "transport": "exact http://[::1]:3000 only",
+    "role": "super_admin",
+    "genericRouteOrActionBridge": false,
+    "steps": [
+      {
+        "action": "create_publication_branch",
+        "endpoint": "/api/workspace",
+        "scope": "workspace.publication_branch.create",
+        "requestShape": "flat action + commandId + bounded fields",
+        "payloadRequired": ["packageId", "platform", "name", "expectedPackageLockVersion", "expectedCanonicalBranchId", "expectedCanonicalBranchLockVersion", "expectedCanonicalRevisionId", "expectedCanonicalBodySha256", "expectedCanonicalCompositionId", "expectedCanonicalCompositionSha256"],
+        "payloadOptional": ["color", "annotation"],
+        "cas": "the active Package must still point to the exact clean primary/canonical ArticleBranch, Revision, body SHA-256 and Composition coordinates; both Article and Package working copies must be clean",
+        "receipt": "stable commandId is bound to actorId, action and canonical payload; identical replay returns the persisted receipt and a different binding is rejected",
+        "sideEffect": "create an isolated ArticleBranch, copied root Revision, clean working copy and distribution work item",
+        "boundary": "does not attach the branch, register a PublicationVersion, create a Build or Release, or perform an external action"
+      },
+      {
+        "action": "attach_branch",
+        "endpoint": "/api/project-package/v1",
+        "scope": "package.branch.attach",
+        "requestShape": "{action, commandId, payload}",
+        "payloadRequired": ["packageId", "branchId", "expectedBranchHeadRevisionId", "expectedBranchHeadBodySha256", "expectedBranchWorkingLockVersion"],
+        "cas": "the existing active ArticleBranch must remain at the exact clean head Revision, body SHA-256 and working-copy lockVersion and must not belong to another Package",
+        "receipt": "stable commandId is bound to the authenticated agent actor, action and canonical payload; replay returns the persisted mutation receipt",
+        "sideEffect": "attach the existing clean ArticleBranch and create or reuse its deterministic Package Composition binding",
+        "boundary": "does not create or advance the ArticleBranch or its ArticleRevision and does not expose generic Package writes"
+      },
+      {
+        "action": "register_publication_version",
+        "endpoint": "/api/project-package/v1",
+        "scope": "publication.version.register",
+        "requestShape": "{action, commandId, payload}",
+        "payloadRequired": ["packageId", "branchId", "expectedBranchLockVersion", "expectedRevisionId", "expectedBodySha256", "expectedCompositionId", "expectedCompositionSha256", "publicationVersion"],
+        "payloadOptional": ["expectedActiveRegistrationId", "expectedActiveRegistrationLockVersion"],
+        "cas": "branch, Revision, body, Composition and working copies must be clean and in sync; platform variants must bind the current registered canonical baseline and current active manual PlatformTarget; replacement also binds the current registration ID and lockVersion",
+        "receipt": "stable commandId is bound to the authenticated agent actor, action and canonical payload; replay returns the persisted mutation receipt",
+        "sideEffect": "insert an active PublicationVersion registration and supersede only an exactly CAS-bound prior registration",
+        "boundary": "does not create a Build or Release, approve content, click publish, verify a destination record or declare completion"
+      }
+    ],
+    "contentEditingContract": "platform copy remains worker candidate Patch -> local super_admin decide_patch -> local super_admin apply_patch; save_working_package and commit are not granted",
+    "ownerOnlyUnchanged": ["issue_client", "revoke_client", "publish_capability_issue", "login", "password", "captcha", "2FA", "account_switch", "final_external_publish_authorization"]
+  },
+  "lifecycleMetricResponse": {
+    "collections": ["metricDefinitions", "metricSnapshots", "metricValues"],
+    "definitionType": "MetricDefinition",
+    "valueType": "MetricValue",
+    "schemaState": ["typed", "legacy_untyped"],
+    "measurementPolicy": "raw platform observations with explicit units, missing policy, evidence and frozen definition digests",
+    "crossPlatformNormalization": false,
+    "crossPlatformComparabilityClaimed": false
+  },
+  "serverResponseEnvelope": {
+    "success": {"required": ["ok", "requestId", "data"], "ok": true},
+    "failure": {"required": ["ok", "requestId", "error"], "ok": false}
+  },
+  "stdioResponseEnvelope": {
+    "schemaVersion": "wenmai.agent-client-response/1.0",
+    "required": ["schemaVersion", "requestId", "command", "ok"],
+    "claimLeaseTokenRule": "leaseToken appears only in successful claim protocol data; Bearer token never appears"
+  },
+  "packagePatchTaskContract": {
+    "writeScope": "package-patch",
+    "requiredTaskContext": ["contextSpec.targetModuleKey"],
+    "targetModuleKeyPolicy": "required at task creation, must identify one existing module in the frozen Composition, is copied into packageBaseline and cannot be changed by update_task",
+    "requiresClientScopeAtClaimAndWrite": "package.patch.propose",
+    "allowedOperations": ["replace_module", "remove_module", "upsert_edge", "remove_edge"],
+    "forbiddenOperations": ["replace_document", "add_module"],
+    "moduleScope": "replace_module and remove_module may address only the frozen targetModuleKey; replace_module cannot rename it",
+    "edgeScope": "upsert_edge must connect the frozen targetModuleKey to an existing module; remove_edge may delete only an existing edge incident to targetModuleKey",
+    "candidateOnly": true
+  },
+  "getViews": {
+    "manifest": {
+      "method": "GET",
+      "query": {"view": "manifest"},
+      "sideEffect": "none"
+    },
+    "health": {
+      "method": "GET",
+      "query": {"view": "health"},
+      "stdioCommand": "status",
+      "requiresAgentScope": "task.read for full bounded status; an exact collaboration Share Grant receives only its single client identity with minimal=true and no task or approval counts",
+      "sideEffect": {"businessWrites": false, "authenticationLastSeenTelemetryMayUpdate": true}
+    },
+    "tasks": {
+      "method": "GET",
+      "query": {"view": "tasks"},
+      "sideEffect": "none"
+    },
+    "task": {
+      "method": "GET",
+      "query": {"view": "task", "taskId": "required"},
+      "taskRecordSchema": "/agent/schemas/task.schema.json",
+      "responseCollections": ["task", "contextSnapshots", "attempts", "events", "artifacts", "approvalRequests", "graphProposals", "packagePatchProposals"],
+      "contextSnapshotProjection": {
+        "bundleReturned": false,
+        "packageBaseline": ["packageId", "branchId", "baseRevisionId", "baseBranchLockVersion", "compositionId", "compositionSha256", "moduleGraphSha256", "diagnosisSummarySha256", "guidanceChecklistSha256", "targetModuleKey"],
+        "guidanceChecklistSummary": ["schemaVersion", "checklistSha256", "archiveState", "archiveReady", "editorialWorkReady", "processingProfile", "profileAuthority", "summary", "nextAction"],
+        "excludedPackageContext": ["source.bodyText", "package.document", "moduleGraph", "diagnosis.issues", "guidanceChecklist.checks", "guidanceChecklist.workUnits", "guidanceChecklist.permissions", "guidanceChecklist.bindings"]
+      },
+      "candidateReceipts": "packagePatchProposals returns the task-scoped candidate Patch records; it does not grant apply, merge, completion, or publication authority",
+      "sideEffect": "none"
+    },
+    "context": {
+      "method": "GET",
+      "query": {"view": "context", "taskId": "required", "contextId": "optional"},
+      "responseSchema": "/agent/schemas/context.schema.json",
+      "responseBoundary": "explicit context.read returns the immutable full frozen Context bundle; unlike task detail, this may include the Package document needed by the leased Agent",
+      "sideEffect": "none"
+    },
+    "events": {
+      "method": "GET",
+      "query": {"view": "events", "taskId": "required", "after": "optional nonnegative cursor", "limit": "optional 1..300"},
+      "itemSchema": "/agent/schemas/progress.schema.json",
+      "sideEffect": "none"
+    },
+    "knowledge": {
+      "method": "GET",
+      "query": {"view": "knowledge", "q": "required max 160 characters", "limit": "optional 1..30"},
+      "sideEffect": "none",
+      "bodyTextIncluded": false
+    },
+    "graph": {
+      "method": "GET",
+      "query": {"view": "graph", "seed": "required comma-separated IDs, max 20", "depth": "optional 0..2", "limit": "optional 1..100"},
+      "sideEffect": "none",
+      "bodyTextIncluded": false
+    },
+    "project_manifest": {
+      "method": "GET",
+      "query": {"view": "project_manifest"},
+      "requiresAgentScope": "package.read",
+      "authentication": "agent_bearer_only",
+      "sideEffect": {"articleBusinessWrites": false, "authenticationLastSeenTelemetryMayUpdate": true}
+    },
+    "project_packages": {
+      "method": "GET",
+      "query": {"view": "project_packages", "articleId": "optional", "projectId": "optional", "status": "optional active|archived", "limit": "optional 1..200"},
+      "requiresAgentScope": "package.read",
+      "objectBoundary": "articleIds applied in SQL before rows are returned",
+      "sideEffect": "none"
+    },
+    "project_branches": {
+      "method": "GET",
+      "query": {"view": "project_branches", "packageId": "required", "limit": "optional 1..200"},
+      "requiresAgentScope": "package.read",
+      "objectBoundary": "Package articleId must be authorized; only attached branches are returned",
+      "sideEffect": "none"
+    },
+    "project_package": {
+      "method": "GET",
+      "query": {"view": "project_package", "packageId": "required", "branchId": "required", "limit": "optional 1..200"},
+      "requiresAgentScope": "package.read",
+      "responseBoundary": "one working PackageDocument plus Composition metadata/manifest; no duplicate document",
+      "sideEffect": "none"
+    },
+    "project_diagnostics": {
+      "method": "GET",
+      "query": {"view": "project_diagnostics", "packageId": "required", "branchId": "required", "diagnosisRunId": "optional", "compositionId": "optional", "limit": "optional 1..200"},
+      "requiresAgentScope": "package.read",
+      "sideEffect": "none"
+    },
+    "project_slices": {
+      "method": "GET",
+      "query": {"view": "project_slices", "packageId": "required", "branchId": "required", "sliceId": "optional", "limit": "optional 1..200"},
+      "requiresAgentScope": "package.read",
+      "sideEffect": "none"
+    },
+    "project_group_manifest": {
+      "method": "GET",
+      "query": {"view": "project_group_manifest"},
+      "requiresAgentScope": "package.read",
+      "authentication": "agent_bearer_only",
+      "sideEffect": {"projectGroupBusinessWrites": false, "authenticationLastSeenTelemetryMayUpdate": true}
+    },
+    "project_groups": {
+      "method": "GET",
+      "query": {"view": "project_groups", "articleId": "optional authorized article id", "includeArchived": "optional boolean", "limit": "optional 1..200"},
+      "requiresAgentScope": "package.read",
+      "responseBoundary": "bounded summary only; members, edges, topology and integrityStatus require project_group detail",
+      "objectBoundary": "restricted tokens receive only complete non-empty groups; star-scoped tokens may receive empty groups",
+      "sideEffect": {"projectGroupBusinessWrites": false, "authenticationLastSeenTelemetryMayUpdate": true}
+    },
+    "project_group": {
+      "method": "GET",
+      "query": {"view": "project_group", "groupId": "required", "articleId": "optional authorized article id", "includeArchived": "optional boolean"},
+      "requiresAgentScope": "package.read",
+      "responseBoundary": "complete topology up to 256 members and 2048 edges; overflow returns 409 without partial data",
+      "objectBoundary": "partial authorization and restricted empty-group reads fail 403 without group disclosure",
+      "sideEffect": {"projectGroupBusinessWrites": false, "authenticationLastSeenTelemetryMayUpdate": true}
+    },
+    "shared_source_manifest": {
+      "method": "GET",
+      "query": {"view": "shared_source_manifest"},
+      "requiresAgentScope": "shared_source.read",
+      "authentication": "agent_bearer_only",
+      "responseBoundary": "metadata-only sources permitted by source, current binding, rights and access gates; no body, excerpt, content_ref or raw provider IDs",
+      "sideEffect": {"sharedSourceBusinessWrites": false, "authenticationLastSeenTelemetryMayUpdate": true}
+    },
+    "shared_source": {
+      "method": "GET",
+      "query": {"view": "shared_source", "id": "required"},
+      "requiresAgentScope": "shared_source.read",
+      "authentication": "agent_bearer_only",
+      "responseBoundary": "metadata-only single source when source, current binding, rights and access gates all pass; denied or missing source does not disclose protected fields",
+      "sideEffect": {"sharedSourceBusinessWrites": false, "authenticationLastSeenTelemetryMayUpdate": true}
+    },
+    "articles": {
+      "method": "GET",
+      "query": {"view": "articles"},
+      "requiresAgentScope": "article.read",
+      "objectBoundary": "only articles in the Bearer client exact articleIds binding are returned; wildcard and future-article access are forbidden for collaboration Share Grants",
+      "sourceResolution": "a unique active D1 Package resolves live to its active primary Branch head Revision; if Package identity exists but is inactive, ambiguous or inconsistent the request fails closed; otherwise the operative corpus representative source is used",
+      "authentication": "agent_bearer_only",
+      "sideEffect": {"articleBusinessWrites": false, "authenticationLastSeenTelemetryMayUpdate": true}
+    },
+    "article": {
+      "method": "GET",
+      "query": {"view": "article", "articleId": "required authorized article id"},
+      "requiresAgentScope": "article.read",
+      "objectBoundary": "articleId must equal the Share Grant's one existing article binding; denied or missing articles do not disclose protected content",
+      "responseIntegrity": "returns revisionId, bodySha256, source.kind and bodyText; the server verifies bodyText SHA-256 before returning it",
+      "authentication": "agent_bearer_only",
+      "sideEffect": {"articleBusinessWrites": false, "authenticationLastSeenTelemetryMayUpdate": true}
+    }
+  },
+  "collaborationShare": {
+    "schemaVersion": "wenmai.share-grant/1",
+    "agentClientLifecycle": "reuses agent_clients Bearer authentication, expiry and revoke lifecycle",
+    "profiles": {
+      "viewer": {"scopesExact": ["article.read"], "articleBinding": "exactly one existing article", "taskBinding": "none"},
+      "editor": {"scopesExact": ["article.read", "task.read", "task.claim", "task.progress", "context.read", "artifact.create", "approval.request", "branch.agent_write"], "articleBinding": "exactly one existing article", "taskBinding": "exactly one non-terminal task of the same article whose permission ceiling, current context and active deterministic task-owned Agent Branch are revalidated on every request", "writeBoundary": "task-owned Agent Branch candidate only"}
+    },
+    "lifetime": {"defaultDays": 7, "maximumDays": 30},
+    "connectionCard": {"schemaVersion": "wenmai.share-grant/1", "secretIncluded": false, "keyDelivery": "portable access file includes this connectionCard plus the separate Bearer credential; the credential never enters the card", "revisionPolicy": "authoritative-current", "gatewayActivationImplied": false},
+    "portableAccessFile": {"schemaVersion": "wenmai.agent-access-file/1", "kind": "portable-share-grant", "contents": ["existing wenmai.share-grant/1 connectionCard", "Bearer credential"], "secret": true, "possessionIsAuthority": true, "grantClasses": ["viewer", "editor"], "forbiddenCredentialClasses": ["advanced", "administrator"], "lifetime": {"viewerDefaultDays": 7, "editorUiDefaultDays": 1, "maximumDays": 30}, "holderAuthority": "corresponding Share Grant permissions apply until server-side expiry or revocation", "serverAuthority": "agent_clients status, expiry and revocation are authoritative", "credentialExposure": "never URL, argv, logs or connectionCard", "storage": {"treatLike": "SSH private key", "posixMode": "0600", "windowsDpapiImport": "optional existing CurrentUser import"}, "lossResponse": "revoke immediately by clientId", "gatewayActivationImplied": false, "crossDeviceOrPublicVerificationClaim": false},
+    "editorCannot": ["main_write", "merge", "release", "publish", "token", "identity", "delete"],
+    "crossDevice": {"transport": "Tailscale HTTPS", "gatewayMustBeSeparatelyEnabledAndVerified": true, "publicInternetDeploymentClaim": false}
+  },
+  "roleAccess": {
+    "schemaVersion": "wenmai.role-grant/1",
+    "agentClientLifecycle": "reuses agent_clients Bearer authentication, expiry and revoke lifecycle",
+    "portableAccessFile": {"schemaVersion": "wenmai.agent-access-file/1", "kind": "portable-role-grant", "secret": true, "possessionIsAuthority": true, "credentialExposure": "never URL, argv or logs", "gatewayActivationImplied": false, "crossDeviceOrPublicVerificationClaim": false},
+    "roles": {
+      "content-steward": {"scopesExact": ["task.read", "context.read", "knowledge.read", "graph.read", "package.read", "shared_source.read", "task.manage"], "actionIdsExact": ["agent.v1.cancel_task", "agent.v1.create_task", "agent.v1.update_task"], "articleScope": "all_articles_including_future", "taskIds": [], "maximumLifetimeDays": 7, "transport": "local_or_exact_tailscale"},
+      "article-worker": {"scopesExact": ["task.read", "task.claim", "task.progress", "context.read", "knowledge.read", "graph.read", "artifact.create", "approval.request", "graph.propose", "branch.agent_write", "package.read", "package.patch.propose"], "actionIdsExact": [], "articleScope": "all_articles_including_future", "taskIds": [], "maximumLifetimeDays": 7, "transport": "local_or_exact_tailscale", "graphProposeBoundary": "candidate graph or deduplication relation proposal only; never confirm, merge, delete or apply"},
+      "local-registrar": {"scopesExact": ["article.import.new_root"], "actionIdsExact": [], "articleScope": "all_articles_including_future", "taskIds": [], "maximumLifetimeDays": 1, "transport": "loopback_only", "boundary": "new root registration only; cannot list articles, read existing body text or overwrite; exact articleId plus bodySha256 may read back bounded registration status metadata"}
+    },
+    "developmentAndUpgrade": "local Git, worktree, tests and review only; never use a Bearer role grant",
+    "currentGaps": ["no safe Agent write API for deduplication final merge", "no safe Agent write API for workflow fission new roots"],
+    "forbidden": ["token.issue", "token.revoke", "identity", "approval.decide", "merge.apply", "release.approve", "publish", "send", "delete", "secret"]
+  },
+  "agentActions": {
+    "claim": {
+      "payloadRequired": ["taskId"],
+      "responseData": {
+        "required": ["task", "attempt", "lease", "context", "contextUrl"],
+        "leaseRequired": ["id", "taskId", "attemptId", "expiresAt", "heartbeatSeq", "leaseToken", "shownOnce"],
+        "contextRequired": ["id", "sha256", "branchId", "revisionId", "baseRevisionId", "baseBranchLockVersion", "bodySha256", "corpusSha256"]
+      },
+      "packagePatchScopeRequirement": "when task.permissionCeiling.writeScope=package-patch, the claiming Agent Key must include package.patch.propose or claim fails with CLIENT_SCOPE_INSUFFICIENT_FOR_TASK",
+      "sideEffect": "task_attempt_and_lease"
+    },
+    "heartbeat": {
+      "payloadRequired": ["taskId", "attemptId", "leaseId", "leaseToken", "contextSha256", "heartbeatSeq"],
+      "heartbeatSeq": "strictly_monotonic",
+      "sideEffect": "lease_state"
+    },
+    "progress": {
+      "payloadRequired": ["taskId", "attemptId", "leaseId", "leaseToken", "contextSha256", "currentAction"],
+      "payloadOptional": ["phase", "progressPercent", "nextAction", "blocker", "message", "evidence", "eventPayload"],
+      "recordSchema": "/agent/schemas/progress.schema.json",
+      "sideEffect": "append_only_event"
+    },
+    "add_artifact": {
+      "payloadRequired": ["taskId", "attemptId", "leaseId", "leaseToken", "contextSha256", "kind", "title", "contentRef"],
+      "payloadOptional": ["sha256 and sizeBytes, computed for agent-inline: but required by the stdio client for external references", "mediaType", "artifactPayload", "inlineContent for agent-inline: references"],
+      "recordSchema": "/agent/schemas/artifact.schema.json",
+      "contentRef": "agent-inline:, artifact:, or .runner/agent/ safe reference; no traversal, backslash, newline, or NUL",
+      "maxInlineUtf8Bytes": 220000,
+      "maxReferencedSizeBytes": 1000000000,
+      "sideEffect": "append_only_artifact_metadata"
+    },
+    "propose_revision": {
+      "payloadRequired": ["taskId", "attemptId", "leaseId", "leaseToken", "contextSha256", "expectedHeadRevisionId", "title", "bodyText"],
+      "payloadOptional": ["summary", "revisionTitle"],
+      "requiresClientScope": "branch.agent_write",
+      "requiresTaskPermission": "permissionCeiling.branchWrite=true and allow includes branch.agent_write",
+      "concurrency": "expectedHeadRevisionId must equal both the clean agent branch head and working-copy base",
+      "responseData": ["task", "revision", "branch", "workingCopy", "event", "hashes", "boundary"],
+      "sideEffect": "advance_task_owned_agent_branch_only",
+      "boundary": "candidateOnly=true, mainWritten=false, mergePerformed=false, editorialApproved=false, releaseApproved=false"
+    },
+    "propose_package_patch": {
+      "payloadRequired": ["taskId", "attemptId", "leaseId", "leaseToken", "contextSha256", "packageId", "branchId", "baseRevisionId", "expectedBranchLockVersion", "baseCompositionId", "expectedBaseCompositionSha256", "title", "operations"],
+      "payloadOptional": ["summary", "evidence", "diagnosticIssueIds", "expectedPackageLockVersion only as a primary-branch compatibility fallback when expectedBranchLockVersion is absent"],
+      "requiresClientScope": "package.patch.propose",
+      "requiresTaskPermission": "writeScope=package-patch and permissionCeiling.packagePatch=true",
+      "frozenTaskTarget": "contextSpec.targetModuleKey must equal packageBaseline.targetModuleKey and still identify an existing module in the current frozen Composition",
+      "allowedOperations": ["replace_module", "remove_module", "upsert_edge", "remove_edge"],
+      "forbiddenOperations": ["replace_document", "add_module"],
+      "moduleScope": "replace_module/remove_module only target the frozen targetModuleKey; replacement key must stay identical",
+      "edgeScope": "upsert_edge endpoints must exist and at least one endpoint must equal targetModuleKey; remove_edge must name a frozen edge incident to targetModuleKey",
+      "concurrency": "task target branch, frozen context branch, ArticleBranch head, Package branch state head revision/composition and branch lock must all match",
+      "sideEffect": "insert_branch_scoped_candidate_patch_only",
+      "boundary": "candidateOnly=true, patchApplied=false, compositionCreated=false, articleBranchAdvanced=false, revisionCreated=false"
+    },
+    "await_human": {
+      "payloadRequired": ["taskId", "attemptId", "leaseId", "leaseToken", "contextSha256", "title", "question"],
+      "payloadOptional": ["kind defaults to clarification", "options defaults to two decisions"],
+      "sideEffect": "approval_request_and_task_state",
+      "targetState": "awaiting_human",
+      "leaseAfterSuccess": "revoked",
+      "guidanceChecklistBoundary": "required after progress checkpoint when any check is blocked or human_required, or when a pending archive check cannot be repaired within the frozen agent scope; this requests a human decision and never supplies that decision"
+    },
+    "complete": {
+      "payloadRequired": ["taskId", "attemptId", "leaseId", "leaseToken", "contextSha256", "summary"],
+      "payloadOptional": ["artifactIds", "evidence"],
+      "packagePatchBoundary": {
+        "accepted": false,
+        "errorCode": "COORDINATOR_COMPLETION_REQUIRED",
+        "completionAuthority": "coordinator_only",
+        "allowedAgentActionsAfterCandidate": ["progress", "await_human"]
+      },
+      "sideEffect": "technical_candidate_state",
+      "meaning": "agent_task_candidate_complete_only_never_approval_or_publication",
+      "targetState": "review",
+      "leaseAfterSuccess": "revoked"
+    },
+    "fail": {
+      "payloadRequired": ["taskId", "attemptId", "leaseId", "leaseToken", "contextSha256", "errorClass", "errorSummary"],
+      "sideEffect": "task_attempt_terminal_state"
+    },
+    "release": {
+      "payloadRequired": ["taskId", "attemptId", "leaseId", "leaseToken", "contextSha256", "note"],
+      "sideEffect": "lease_state",
+      "meaning": "release_task_lease_only_never_publish"
+    },
+    "create_graph_proposal": {
+      "stdioClientCommand": false,
+      "payloadRequired": ["taskId", "attemptId", "leaseId", "leaseToken", "contextSha256", "proposalKind", "proposalPayload", "evidence"],
+      "payloadOptional": ["sourceId", "targetId", "relationType", "label"],
+      "recordSchema": "/agent/schemas/graph-proposal.schema.json",
+      "sideEffect": "append_only_candidate_proposal"
+    }
+  },
+  "ownerOnlyKeyActions": [
+    "issue_client",
+    "revoke_client"
+  ],
+  "privilegedControlActions": {
+    "v3CurrentNewIssuance": {
+      "administratorAgentApi": ["create_task", "update_task", "cancel_task"],
+      "superAdminWorkspaceApi": ["create_publication_branch", "save_working_copy", "commit_revision"],
+      "superAdminProjectPackageApi": ["attach_branch", "register_publication_version"],
+      "scopeActionIds": {"workspace.branch.write": ["workspace.save_working_copy", "workspace.commit_revision"]}
+    },
+    "legacyFrozenOnly": ["decide_approval", "decide_graph_proposal", "decide_patch", "apply_patch", "prepare_merge", "save_merge_resolution", "merge_revision", "consume_publish_capability"],
+    "administrator": ["create_task", "update_task", "cancel_task"],
+    "superAdminAgentApi": ["create_task", "update_task", "cancel_task", "decide_approval", "decide_graph_proposal"],
+    "superAdminProjectPackageApi": ["decide_patch", "apply_patch", "attach_branch", "register_publication_version"],
+    "superAdminWorkspaceApi": ["create_publication_branch", "save_working_copy", "commit_revision", "prepare_merge", "save_merge_resolution", "merge_revision"],
+    "superAdminPublishCapabilityApi": ["consume"],
+    "stableCommandIdRequired": true,
+    "genericArbitraryRequestBridge": false,
+    "ownerOnly": ["issue_client", "revoke_client", "publish_capability_issue"],
+    "externalSideEffect": false
+  },
+  "publishCapability": {
+    "endpoint": "/api/publish-capability/v1",
+    "ownerIssueAction": "issue",
+    "superAdminConsumeAction": "consume",
+    "agentReceives": ["capabilityId"],
+    "agentNeverReceives": ["ticket", "nonce", "HMAC_key", "upstream_credentials"],
+    "consumeAttestationFalseClaims": ["externalActionPerformed", "publishClicked", "submissionAccepted", "destinationRecordVerified", "publicAccessVerified", "outcomeVerified", "completionDeclared"]
+  },
+  "errorCodes": [
+    "AUTH_REQUIRED",
+    "AUTH_INVALID",
+    "AUTH_EXPIRED",
+    "AMBIGUOUS_AUTH_FORBIDDEN",
+    "PRIVILEGED_AUTH_REQUIRED",
+    "PRIVILEGED_ROLE_DENIED",
+    "PRIVILEGED_SCOPE_DENIED",
+    "PRIVILEGED_TRANSPORT_REQUIRED",
+    "SELF_APPROVAL_FORBIDDEN",
+    "ACTION_FORBIDDEN",
+    "IMPORT_BOUNDARY_REQUIRED",
+    "LOCAL_IMPORT_SCOPE_DENIED",
+    "LOCAL_IMPORT_AUTH_EXPIRED",
+    "SCOPE_DENIED",
+    "SHARE_SCOPE_INVALID",
+    "SHARE_GRANT_INVALID",
+    "SHARE_TASK_INVALID",
+    "SHARED_ARTICLE_NOT_FOUND",
+    "SHARED_ARTICLE_SOURCE_INVALID",
+    "SHARED_ARTICLE_SOURCE_AMBIGUOUS",
+    "MISSING_FIELD",
+    "TASK_PERMISSION_DENIED",
+    "OBJECT_SCOPE_DENIED",
+    "PACKAGE_NOT_FOUND",
+    "PACKAGE_BRANCH_NOT_FOUND",
+    "PACKAGE_BRANCH_UNAVAILABLE",
+    "PROJECT_STORAGE_UNAVAILABLE",
+    "TASK_NOT_FOUND",
+    "TASK_NOT_CLAIMABLE",
+    "LEASE_INVALID",
+    "CONTEXT_STALE",
+    "PACKAGE_CONTEXT_STALE",
+    "PACKAGE_BRANCH_CONTEXT_MISMATCH",
+    "PACKAGE_BRANCH_MIGRATION_REQUIRED",
+    "BRANCH_LOCK_VERSION_REQUIRED",
+    "CLIENT_SCOPE_INSUFFICIENT_FOR_TASK",
+    "PACKAGE_TARGET_MODULE_NOT_FOUND",
+    "PACKAGE_TARGET_MODULE_CONTEXT_MISMATCH",
+    "PACKAGE_TARGET_MODULE_IMMUTABLE",
+    "PACKAGE_PATCH_DOCUMENT_REPLACE_FORBIDDEN",
+    "PACKAGE_PATCH_TARGET_SCOPE_VIOLATION",
+    "SHARED_SOURCE_NOT_INITIALIZED",
+    "SHARED_SOURCE_NOT_FOUND",
+    "INVALID_PACKAGE_PATCH",
+    "PACKAGE_PATCH_TOO_LARGE",
+    "GUIDANCE_CHECKLIST_REQUIRED",
+    "GUIDANCE_CHECKLIST_OPEN",
+    "COORDINATOR_COMPLETION_REQUIRED",
+    "PACKAGE_PATCH_EVIDENCE_REQUIRED",
+    "PACKAGE_PATCH_EVIDENCE_TOO_LARGE",
+    "COMMAND_ID_REUSED",
+    "COMMAND_IN_PROGRESS",
+    "PAYLOAD_TOO_LARGE",
+    "INVALID_JSON",
+    "INTERNAL_ERROR"
+  ]
+}

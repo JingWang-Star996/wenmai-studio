@@ -55,8 +55,10 @@ def sha_file(path: Path) -> str:
     return h.hexdigest()
 
 def is_reparse(path: Path) -> bool:
-    try: return bool(os.lstat(path).st_file_attributes & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0))
-    except AttributeError: return False
+    info = os.lstat(path)
+    return stat.S_ISLNK(info.st_mode) or bool(
+        getattr(info, "st_file_attributes", 0) & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
+    )
 
 def assert_regular(path: Path, label: str, *, one_link=True) -> os.stat_result:
     info = os.lstat(path)
@@ -156,9 +158,10 @@ def main(argv=None) -> int:
         root = Path(ns.repo_root).resolve(strict=True); selection = Path(ns.selection).resolve(strict=True); stage = Path(ns.stage_root)
         if not root.is_dir() or not re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", ns.recorded_at_utc): raise GateError("repo root or recorded-at-utc invalid")
         if selection.parent != root / selection.relative_to(root).parent: raise GateError("selection must be inside repo")
-        stage_abs = stage.absolute()
-        if stage.exists() or root == stage_abs or root in stage_abs.parents or stage_abs in root.parents: raise GateError("stage must not exist, must be outside repo, and must not contain repo")
-        if any(is_reparse(p) for p in stage_abs.parents if p.exists()): raise GateError("stage parent contains reparse point")
+        stage_lexical = stage.absolute()
+        stage_resolved = stage.resolve(strict=False)
+        if stage.exists() or root == stage_resolved or root in stage_resolved.parents or stage_resolved in root.parents: raise GateError("stage must not exist, must be outside repo, and must not contain repo")
+        if any(is_reparse(p) for p in stage_lexical.parents if p.exists()): raise GateError("stage parent contains reparse point")
         data, entries = load_selection(selection, ns.expected_selection_sha256)
         universe = git_universe(root)
         for p in universe: safe_rel(p)
@@ -175,7 +178,7 @@ def main(argv=None) -> int:
             source.append((p, sha_file(fp), info.st_size))
         if sum(x[2] for x in source) > MAX_TOTAL: raise GateError("source total exceeds 64 MiB")
         stage.mkdir(parents=False)
-        if is_reparse(stage): raise GateError("stage is a reparse point")
+        if is_reparse(stage) or stage.resolve(strict=True) != stage_resolved: raise GateError("stage target changed during creation")
         literal_hashes = [hashlib.sha256(x.encode("utf-8")).hexdigest() for x in ns.forbidden_literal]
         findings=[]; tree=[]
         for p, before, size in source:

@@ -5,11 +5,30 @@ TOOL = Path(__file__).parents[1] / "scripts" / "stage-public-release-candidate.p
 
 class StageCandidateTests(unittest.TestCase):
     def setUp(self):
-        self.td = tempfile.TemporaryDirectory(); self.root = Path(self.td.name) / "repo"; self.root.mkdir()
+        self.td = tempfile.TemporaryDirectory(); self.aliases = []; self.root = Path(self.td.name) / "repo"; self.root.mkdir()
         subprocess.run(["git","init","-q",str(self.root)], check=True)
         (self.root / "src").mkdir(); (self.root / "src" / "ok.txt").write_text("ordinary source\n", encoding="utf-8")
         self.selection = self.root / "qa" / "selection.json"; self.selection.parent.mkdir()
-    def tearDown(self): self.td.cleanup()
+    def tearDown(self):
+        for alias in reversed(self.aliases):
+            try:
+                alias.unlink() if alias.is_symlink() else os.rmdir(alias)
+            except FileNotFoundError:
+                pass
+        self.td.cleanup()
+    def make_directory_alias(self, name, target):
+        alias = Path(self.td.name) / name
+        if os.name == "nt":
+            result = subprocess.run(["cmd", "/d", "/c", "mklink", "/J", str(alias), str(target)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if result.returncode != 0:
+                self.skipTest("directory junction creation unavailable")
+        else:
+            try:
+                alias.symlink_to(target, target_is_directory=True)
+            except OSError:
+                self.skipTest("directory symlink creation unavailable")
+        self.aliases.append(alias)
+        return alias
     def write_selection(self, entries=None):
         if entries is None:
             files = sorted(p.relative_to(self.root).as_posix() for p in self.root.rglob("*") if p.is_file() and ".git" not in p.parts)
@@ -52,6 +71,18 @@ class StageCandidateTests(unittest.TestCase):
         sha=self.write_selection(entries); self.assertNotEqual(self.invoke(expected=sha).returncode,0)
         sha=self.write_selection(); self.assertNotEqual(self.invoke(self.root/"stage",sha).returncode,0)
         occupied=Path(self.td.name)/"occupied"; occupied.mkdir(); self.assertNotEqual(self.invoke(occupied,sha).returncode,0)
+    def test_stage_reparse_parent_outside_repo_is_rejected(self):
+        target = Path(self.td.name) / "outside-target"; target.mkdir()
+        alias = self.make_directory_alias("outside-alias", target)
+        sha = self.write_selection(); result = self.invoke(alias / "stage", sha)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("stage parent contains reparse point", result.stderr)
+    def test_stage_alias_resolving_inside_repo_is_rejected(self):
+        target = self.root / "inside-target"; target.mkdir()
+        alias = self.make_directory_alias("inside-alias", target)
+        sha = self.write_selection(); result = self.invoke(alias / "stage", sha)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("stage must not exist", result.stderr)
     def test_secret_literal_redaction_and_source_alias(self):
         (self.root/"src"/"variables.ts").write_text('const token = issuedClient.token;\nconst apiKey = "DEEPSEEK_API_KEY";\nconst secret = "PRIVATE_DETAILS_SENTINEL";\n', encoding="utf-8")
         secret_value = "really" * 5
